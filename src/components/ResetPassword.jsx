@@ -7,20 +7,45 @@ export default function ResetPassword() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [isValidSession, setIsValidSession] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
   const toast = useToast()
 
   useEffect(() => {
+    // Check URL parameters for errors
+    const urlParams = new URLSearchParams(window.location.hash.substring(1))
+    const error = urlParams.get('error')
+    const errorDescription = urlParams.get('error_description')
+    
+    if (error) {
+      let message = 'An error occurred with the reset link.'
+      if (error === 'access_denied' && errorDescription) {
+        message = decodeURIComponent(errorDescription)
+      }
+      setErrorMessage(message)
+      setIsValidSession(false)
+      return
+    }
+
     // Check if we have a valid password reset session
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) {
-        setIsValidSession(true)
-      } else {
-        toast.error('Invalid or expired reset link. Please request a new password reset.')
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+        if (error) {
+          setErrorMessage('Error checking session: ' + error.message)
+          setIsValidSession(false)
+        } else if (session?.user) {
+          setIsValidSession(true)
+        } else {
+          setErrorMessage('Invalid or expired reset link. Please request a new password reset.')
+          setIsValidSession(false)
+        }
+      } catch (err) {
+        setErrorMessage('Error checking session. Please try again.')
+        setIsValidSession(false)
       }
     }
     checkSession()
-  }, [toast])
+  }, [])
 
   const handlePasswordReset = async (e) => {
     e.preventDefault()
@@ -65,11 +90,16 @@ export default function ResetPassword() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <div className="text-6xl mb-4">🔒</div>
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Invalid Reset Link</h1>
-            <p className="text-gray-600">This password reset link is invalid or has expired.</p>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">Reset Link Issue</h1>
+            <p className="text-gray-600">There was an issue with your password reset link.</p>
           </div>
           
           <div className="bg-white rounded-2xl shadow-xl p-8 border text-center">
+            <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-700 text-sm">
+                {errorMessage || 'This password reset link is invalid or has expired.'}
+              </p>
+            </div>
             <p className="text-gray-700 mb-4">
               Please request a new password reset from the sign-in page.
             </p>

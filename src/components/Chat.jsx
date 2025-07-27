@@ -2,6 +2,14 @@ import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { supabase } from '../supabase'
 
+// Get API base URL from config
+const getApiBaseUrl = () => {
+  if (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) {
+    return window.APP_CONFIG.API_BASE_URL
+  }
+  return 'http://localhost:8000' // fallback for development
+}
+
 export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGroup }) {
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState([])
@@ -70,7 +78,7 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
       if (mode === 'input') {
         // Only handle personal expense input in input mode
         console.log('🔄 Sending parse request:', input)
-        const response = await axios.post('http://localhost:8000/parse', { text: input })
+        const response = await axios.post(`${getApiBaseUrl()}/parse`, { text: input })
         const { expenses, reply } = response.data
         console.log('✅ Parse response:', { expenses, reply })
         setMessages(prev => [...prev, { type: 'system', text: reply }])
@@ -130,7 +138,7 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
           group_data_count: chatPayload.group_expenses_data?.length || 0
         })
 
-        const response = await axios.post('http://localhost:8000/chat', chatPayload)
+        const response = await axios.post(`${getApiBaseUrl()}/chat`, chatPayload)
         const { reply, error } = response.data
         
         console.log('✅ Chat response:', { reply, error })
@@ -178,14 +186,14 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
     const lowerQuery = query.toLowerCase()
     
     if (lowerQuery.includes('total') || lowerQuery.includes('expense')) {
-      return `I'd love to help you with your ${contextType} expenses, but I can't connect to the server right now. Please make sure the backend is running on http://localhost:8000 and try again.`
+      return `I'd love to help you with your ${contextType} expenses, but I can't connect to the server right now. Please make sure the backend is running and try again.`
     }
     
     if (lowerQuery.includes('help')) {
       return `I'm here to help with your ${contextType} finance questions, but I'm currently unable to connect to the server. Please check that the backend is running and try again.`
     }
     
-    return `Sorry, I can't process your ${contextType} finance question right now due to a server connection issue. Please ensure the backend is running on http://localhost:8000 and try again.`
+    return `Sorry, I can't process your ${contextType} finance question right now due to a server connection issue. Please ensure the backend is running and try again.`
   }
 
   return (

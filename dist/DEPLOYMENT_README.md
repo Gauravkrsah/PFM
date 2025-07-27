@@ -32,6 +32,14 @@ The backend uses CGI for cPanel compatibility:
 - Ensure Python 3 is available on your hosting
 - Install required packages: `pip install -r backend/requirements.txt`
 
+**IMPORTANT: Set Execute Permissions**
+After uploading, you MUST set execute permissions on the CGI script:
+1. In cPanel File Manager, navigate to `backend/app.cgi`
+2. Right-click → Permissions → Set to 755 (rwxr-xr-x)
+3. Or via SSH: `chmod 755 backend/app.cgi`
+
+Without execute permissions, you'll get "Permission denied" errors.
+
 ### 4. Environment Variables
 Create a `.env` file in the backend directory with:
 ```
@@ -41,17 +49,24 @@ GEMINI_API_KEY=your_gemini_api_key (optional)
 ```
 
 ### 5. API Endpoints
-- Parse expenses: `POST /backend/app.cgi` with `{"text": "expense description"}`
+- Parse expenses: `POST /backend/app.cgi/parse` with `{"text": "expense description"}`
+- Chat: `POST /backend/app.cgi/chat` with chat payload
 - Health check: `GET /backend/app.cgi`
 
-### 6. Features
+### 6. Troubleshooting
+**Common Issues:**
+- **500 Error "Permission denied"**: Set execute permissions on `app.cgi` (chmod 755)
+- **API not found**: Check that `.htaccess` is uploaded and working
+- **CORS errors**: Ensure `Access-Control-Allow-Origin` headers are set in CGI script
+
+### 7. Features
 - ✅ Expense parsing with natural language processing
 - ✅ Category auto-detection (Food, Transport, Groceries, etc.)
 - ✅ Multiple input formats support
 - ✅ Clean item name extraction
 - ✅ Proper error handling
 
-### 7. Supported Input Formats
+### 8. Supported Input Formats
 - "500 for petrol" → Transport category
 - "spend 300 on momo" → Food category  
 - "rent 20000 paid by john" → Rent category with payer info
