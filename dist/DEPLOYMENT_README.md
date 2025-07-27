@@ -32,13 +32,34 @@ The backend uses CGI for cPanel compatibility:
 - Ensure Python 3 is available on your hosting
 - Install required packages: `pip install -r backend/requirements.txt`
 
-**IMPORTANT: Set Execute Permissions**
-After uploading, you MUST set execute permissions on the CGI script:
-1. In cPanel File Manager, navigate to `backend/app.cgi`
-2. Right-click → Permissions → Set to 755 (rwxr-xr-x)
-3. Or via SSH: `chmod 755 backend/app.cgi`
+**CRITICAL: CGI Setup Steps**
+After uploading, follow these steps EXACTLY:
 
-Without execute permissions, you'll get "Permission denied" errors.
+1. **Set Execute Permissions** (REQUIRED):
+   - In cPanel File Manager, navigate to `backend/app.cgi`
+   - Right-click → Permissions → Set to **755** (rwxr-xr-x)
+   - Also set permissions for `backend/test.cgi` to **755**
+   - Or via SSH: `chmod 755 backend/*.cgi`
+
+2. **Test CGI Functionality**:
+   - First test: Visit `https://yourdomain.com/backend/test.cgi`
+   - Should return: `{"status": "success", "message": "CGI is working!"}`
+   - If this fails, CGI is not properly configured on your hosting
+
+3. **Check Python Path**:
+   - Ensure the shebang line `#!/usr/bin/env python3` is correct
+   - Some hosts require `#!/usr/bin/python3` or `#!/usr/local/bin/python3`
+   - Check with your hosting provider for the correct Python path
+
+4. **Verify File Upload**:
+   - Ensure all files in `backend/` folder are uploaded
+   - Check that `nlp_parser.py` exists in the same directory as `app.cgi`
+   - Verify line endings are Unix-style (LF, not CRLF)
+
+**Common Issues:**
+- **"Permission denied"**: File permissions not set to 755
+- **"No such file or directory"**: Wrong Python path in shebang line
+- **"Internal Server Error"**: Check error logs in cPanel for specific Python errors
 
 ### 4. Environment Variables
 Create a `.env` file in the backend directory with:

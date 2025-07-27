@@ -1,8 +1,9 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 
 import sys
 import os
 import json
+from urllib.parse import parse_qs
 
 # Add the current directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -35,7 +36,7 @@ def handle_chat_cgi(data):
         user_name = data.get('user_name', 'there')
         group_name = data.get('group_name')
         
-        # Simple fallback chat response
+        # Simple fallback chat response since we don't have Gemini API in CGI
         if group_name:
             context = f"group '{group_name}'"
         else:
@@ -61,8 +62,18 @@ def handle_chat_cgi(data):
             "error": str(e)
         }
 
+def get_endpoint_from_path():
+    """Extract endpoint from PATH_INFO"""
+    try:
+        path_info = os.environ.get('PATH_INFO', '')
+        if path_info.startswith('/'):
+            path_info = path_info[1:]  # Remove leading slash
+        return path_info
+    except:
+        return ''
+
 def handle_request():
-    """Handle CGI request"""
+    """Handle CGI request with routing"""
     try:
         # Set content type and CORS headers
         print("Content-Type: application/json")
@@ -71,8 +82,9 @@ def handle_request():
         print("Access-Control-Allow-Headers: Content-Type")
         print()  # Empty line required after headers
         
-        # Get request method
+        # Get request method and endpoint
         method = os.environ.get('REQUEST_METHOD', 'GET')
+        endpoint = get_endpoint_from_path()
         
         if method == 'OPTIONS':
             # Handle preflight request
@@ -86,23 +98,27 @@ def handle_request():
                     post_data = sys.stdin.read(content_length)
                     data = json.loads(post_data)
                     
-                    # Route based on action parameter
-                    action = data.get('action', 'parse')
-                    
-                    if action == 'parse':
+                    # Route based on endpoint
+                    if endpoint == 'parse':
                         text = data.get('text', '')
                         result = parse_expense_cgi(text)
                         print(json.dumps(result))
-                    elif action == 'chat':
+                    elif endpoint == 'chat':
                         result = handle_chat_cgi(data)
                         print(json.dumps(result))
                     else:
-                        error_result = {
-                            "error": f"Unknown action: {action}",
-                            "reply": "ERROR: Unknown action"
-                        }
-                        print(json.dumps(error_result))
-                        
+                        # Default to parse for backward compatibility
+                        text = data.get('text', '')
+                        if text:
+                            result = parse_expense_cgi(text)
+                            print(json.dumps(result))
+                        else:
+                            error_result = {
+                                "error": f"Unknown endpoint: {endpoint}",
+                                "reply": "ERROR: Unknown endpoint"
+                            }
+                            print(json.dumps(error_result))
+                            
                 except json.JSONDecodeError as e:
                     error_result = {
                         "expenses": [],
@@ -125,8 +141,8 @@ def handle_request():
             # Handle GET request (health check)
             health_result = {
                 "status": "healthy",
-                "message": "Personal Finance Manager API is running",
-                "actions": ["parse", "chat"],
+                "message": "Personal Finance Manager API is running (alt1)",
+                "endpoints": ["parse", "chat"],
                 "version": "1.0.0"
             }
             print(json.dumps(health_result))
