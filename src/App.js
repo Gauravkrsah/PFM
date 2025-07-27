@@ -1,5 +1,7 @@
 import { useState, useRef } from 'react'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Auth from './components/Auth'
+import ResetPassword from './components/ResetPassword'
 import Header from './components/Header'
 import GroupManager from './components/GroupManager'
 import Chat from './components/Chat'
@@ -58,36 +60,35 @@ function App() {
     }
   }
 
-  if (!user) {
-    return (
-      <ToastProvider>
+  // Main App Component
+  const MainApp = () => {
+    if (!user) {
+      return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
           <Auth onAuth={setUser} />
         </div>
-      </ToastProvider>
-    )
-  }
+      )
+    }
 
-  const tabs = [
-    { id: 'chat', label: '💬', fullLabel: 'Chat', icon: '💬' },
-    { id: 'table', label: '📊', fullLabel: 'Table', icon: '📊' },
-    { id: 'analytics', label: '📈', fullLabel: 'Analytics', icon: '📈' }
-  ]
+    const tabs = [
+      { id: 'chat', label: '💬', fullLabel: 'Chat', icon: '💬' },
+      { id: 'table', label: '📊', fullLabel: 'Table', icon: '📊' },
+      { id: 'analytics', label: '📈', fullLabel: 'Analytics', icon: '📈' }
+    ]
 
-  return (
-    <ToastProvider>
+    return (
       <div className="min-h-screen bg-gray-50">
-        <Header 
-          user={user} 
+        <Header
+          user={user}
           onLogout={() => setUser(null)}
           onProfileUpdate={() => {}}
         />
         
         <div className="max-w-6xl mx-auto px-4 py-6">
-          <GroupManager 
-            user={user} 
-            currentGroup={currentGroup} 
-            onGroupChange={setCurrentGroup} 
+          <GroupManager
+            user={user}
+            currentGroup={currentGroup}
+            onGroupChange={setCurrentGroup}
           />
           
           {/* Mobile-first tab navigation */}
@@ -97,8 +98,8 @@ function App() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex-1 px-3 py-3 text-center transition-all duration-200 ${
-                  activeTab === tab.id 
-                    ? 'bg-blue-600 text-white shadow-md' 
+                  activeTab === tab.id
+                    ? 'bg-blue-600 text-white shadow-md'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
                 }`}
               >
@@ -121,6 +122,17 @@ function App() {
           </div>
         </div>
       </div>
+    )
+  }
+
+  return (
+    <ToastProvider>
+      <Router>
+        <Routes>
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/" element={<MainApp />} />
+        </Routes>
+      </Router>
     </ToastProvider>
   )
 }

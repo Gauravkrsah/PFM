@@ -6,6 +6,7 @@ export default function Auth({ onAuth }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
+  const [isForgotPassword, setIsForgotPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [user, setUser] = useState(null)
   const toast = useToast()
@@ -35,17 +36,33 @@ export default function Auth({ onAuth }) {
     setLoading(true)
     
     try {
-      const { data, error } = isSignUp 
-        ? await supabase.auth.signUp({ email, password })
-        : await supabase.auth.signInWithPassword({ email, password })
-      
-      if (error) {
-        toast.error('Error: ' + error.message)
-      } else if (isSignUp) {
-        if (data.user && !data.session) {
-          toast.info('Please check your email and click the confirmation link to activate your account!')
+      if (isForgotPassword) {
+        // Handle password reset
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`
+        })
+        
+        if (error) {
+          toast.error('Error: ' + error.message)
         } else {
-          toast.success('Account created successfully!')
+          toast.success('Password reset email sent! Please check your inbox.')
+          setIsForgotPassword(false)
+          setEmail('')
+        }
+      } else {
+        // Handle sign in/sign up
+        const { data, error } = isSignUp
+          ? await supabase.auth.signUp({ email, password })
+          : await supabase.auth.signInWithPassword({ email, password })
+        
+        if (error) {
+          toast.error('Error: ' + error.message)
+        } else if (isSignUp) {
+          if (data.user && !data.session) {
+            toast.info('Please check your email and click the confirmation link to activate your account!')
+          } else {
+            toast.success('Account created successfully!')
+          }
         }
       }
     } catch (err) {
@@ -96,7 +113,7 @@ export default function Auth({ onAuth }) {
         
         <div className="bg-white rounded-2xl shadow-xl p-8 border">
           <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">
-            {isSignUp ? 'Create Account' : 'Welcome Back'}
+            {isForgotPassword ? 'Reset Password' : (isSignUp ? 'Create Account' : 'Welcome Back')}
           </h2>
           
           <form onSubmit={handleAuth} className="space-y-4">
@@ -112,17 +129,19 @@ export default function Auth({ onAuth }) {
               />
             </div>
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
-              <input
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                required
-              />
-            </div>
+            {!isForgotPassword && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                <input
+                  type="password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  required
+                />
+              </div>
+            )}
             
             <button
               type="submit"
@@ -135,18 +154,41 @@ export default function Auth({ onAuth }) {
                   <span>Processing...</span>
                 </div>
               ) : (
-                isSignUp ? 'Create Account' : 'Sign In'
+                isForgotPassword ? 'Send Reset Email' : (isSignUp ? 'Create Account' : 'Sign In')
               )}
             </button>
           </form>
           
           <div className="mt-6 text-center space-y-3">
-            <button
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="text-blue-600 hover:text-blue-800 font-medium transition-colors block w-full"
-            >
-              {isSignUp ? 'Already have an account? Sign in' : 'Need an account? Sign up'}
-            </button>
+            {!isForgotPassword ? (
+              <>
+                <button
+                  onClick={() => setIsSignUp(!isSignUp)}
+                  className="text-blue-600 hover:text-blue-800 font-medium transition-colors block w-full"
+                >
+                  {isSignUp ? 'Already have an account? Sign in' : 'Need an account? Sign up'}
+                </button>
+                
+                {!isSignUp && (
+                  <button
+                    onClick={() => setIsForgotPassword(true)}
+                    className="text-sm text-gray-600 hover:text-gray-800 transition-colors block w-full"
+                  >
+                    Forgot your password?
+                  </button>
+                )}
+              </>
+            ) : (
+              <button
+                onClick={() => {
+                  setIsForgotPassword(false)
+                  setEmail('')
+                }}
+                className="text-blue-600 hover:text-blue-800 font-medium transition-colors block w-full"
+              >
+                ← Back to Sign In
+              </button>
+            )}
             
             <div className="border-t pt-3">
               <button
