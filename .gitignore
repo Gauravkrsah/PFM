@@ -11,7 +11,7 @@ __pycache__/
 
 # Build outputs
 build/
-dist/
+# dist/ - commented out to include production build for deployment
 
 # Logs
 *.log
