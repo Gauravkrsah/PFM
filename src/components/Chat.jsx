@@ -78,8 +78,7 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
       if (mode === 'input') {
         // Only handle personal expense input in input mode
         console.log('🔄 Sending parse request:', input)
-        const response = await axios.post(`${getApiBaseUrl()}/app.cgi`, {
-          action: 'parse',
+        const response = await axios.post(`${getApiBaseUrl()}/parse`, {
           text: input
         })
         const { expenses, reply } = response.data
@@ -141,8 +140,7 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
           group_data_count: chatPayload.group_expenses_data?.length || 0
         })
 
-        chatPayload.action = 'chat'
-        const response = await axios.post(`${getApiBaseUrl()}/app.cgi`, chatPayload)
+        const response = await axios.post(`${getApiBaseUrl()}/chat`, chatPayload)
         const { reply, error } = response.data
         
         console.log('✅ Chat response:', { reply, error })

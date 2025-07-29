@@ -6,6 +6,25 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState({})
   const [loading, setLoading] = useState(false)
+  const [groupMembers, setGroupMembers] = useState([])
+
+  const fetchGroupMembers = async () => {
+    if (!currentGroup) {
+      setGroupMembers([])
+      return
+    }
+    
+    try {
+      const { data } = await supabase
+        .from('group_members')
+        .select('user_id, users(name, email)')
+        .eq('group_id', currentGroup.id)
+      setGroupMembers(data || [])
+    } catch (error) {
+      console.error('Error fetching group members:', error)
+      setGroupMembers([])
+    }
+  }
 
   const fetchExpenses = async () => {
     setLoading(true)
@@ -41,6 +60,7 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
 
   useEffect(() => {
     fetchExpenses()
+    fetchGroupMembers()
   }, [currentGroup, user])
 
   const handleEdit = (expense) => {
@@ -172,7 +192,22 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
                       )}
                     </td>
                     <td className="p-2">{expense.remarks}</td>
-                    <td className="p-2">{expense.paid_by || '-'}</td>
+                    <td className="p-2">
+                      {(() => {
+                        if (expense.user_id === user?.id) {
+                          // Current user added this expense
+                          return user?.user_metadata?.name || user?.email?.split('@')[0] || 'You'
+                        } else if (currentGroup && groupMembers.length > 0) {
+                          // Find the group member who added this expense
+                          const member = groupMembers.find(m => m.user_id === expense.user_id)
+                          if (member?.users) {
+                            return member.users.name || member.users.email?.split('@')[0] || 'Group Member'
+                          }
+                        }
+                        // Fallback for unknown users
+                        return 'Group Member'
+                      })()}
+                    </td>
                     <td className="p-2">
                       <button onClick={() => handleEdit(expense)} className="text-blue-600 mr-2">✏️</button>
                       <button onClick={() => handleDelete(expense.id)} className="text-red-600">🗑️</button>

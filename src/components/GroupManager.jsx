@@ -10,7 +10,8 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
   const [invitations, setInvitations] = useState([])
   const [groupMembers, setGroupMembers] = useState([])
   const [isProcessing, setIsProcessing] = useState(false)
-  const [showGroupActions, setShowGroupActions] = useState(false)
+  const [loadingMembers, setLoadingMembers] = useState(false)
+  const [showMembers, setShowMembers] = useState(false)
   const toast = useToast()
 
   useEffect(() => {
@@ -103,6 +104,8 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
           toast.success('Group created successfully!')
           setGroupName('')
           setShowCreate(false)
+          // Set the newly created group as current group
+          onGroupChange(data[0])
           fetchGroups()
         }
       }
@@ -115,12 +118,32 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
   }
 
   const fetchGroupMembers = async () => {
-    if (!currentGroup) return
-    const { data } = await supabase
-      .from('group_members')
-      .select('users(name, email)')
-      .eq('group_id', currentGroup.id)
-    setGroupMembers(data || [])
+    if (!currentGroup) {
+      setGroupMembers([])
+      return
+    }
+    
+    setLoadingMembers(true)
+    try {
+      console.log('🔄 Fetching group members for group:', currentGroup.id)
+      const { data, error } = await supabase
+        .from('group_members')
+        .select('user_id, users(name, email)')
+        .eq('group_id', currentGroup.id)
+      
+      if (error) {
+        console.error('❌ Error fetching group members:', error)
+        setGroupMembers([])
+      } else {
+        console.log('✅ Fetched group members:', data)
+        setGroupMembers(data || [])
+      }
+    } catch (err) {
+      console.error('❌ Unexpected error fetching group members:', err)
+      setGroupMembers([])
+    } finally {
+      setLoadingMembers(false)
+    }
   }
 
   const leaveGroup = async () => {
@@ -237,7 +260,7 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
           onChange={(e) => {
             const group = e.target.value === 'personal' ? null : groups.find(g => g.id === parseInt(e.target.value))
             onGroupChange(group)
-            setShowGroupActions(false)
+            setShowMembers(false)
           }}
           className="flex-1 sm:flex-none px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         >
@@ -264,47 +287,48 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
                 onChange={(e) => setInviteEmail(e.target.value)}
                 className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-48"
               />
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 className="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
               >
                 Invite
               </button>
             </form>
             
-            <button
-              onClick={() => setShowGroupActions(!showGroupActions)}
-              className="px-3 py-2 text-sm bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              ⚙️
-            </button>
+            {/* Group Action Buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={leaveGroup}
+                disabled={isProcessing}
+                className="px-3 py-2 text-sm bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                title="Leave Group"
+              >
+                🚪 Leave
+              </button>
+              
+              {currentGroup.created_by === user.id && (
+                <button
+                  onClick={deleteGroup}
+                  disabled={isProcessing}
+                  className="px-3 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                  title="Delete Group"
+                >
+                  🗑️ Delete
+                </button>
+              )}
+              
+              <button
+                onClick={() => setShowMembers(!showMembers)}
+                className="px-3 py-2 text-sm bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors font-medium"
+                title="View Group Members"
+              >
+                👥 Members
+              </button>
+            </div>
           </>
         )}
       </div>
 
-      {/* Group actions dropdown */}
-      {currentGroup && showGroupActions && (
-        <div className="mt-3 p-3 bg-gray-50 rounded-lg border">
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={leaveGroup}
-              disabled={isProcessing}
-              className="px-3 py-1 text-sm bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              Leave Group
-            </button>
-            {currentGroup.created_by === user.id && (
-              <button
-                onClick={deleteGroup}
-                disabled={isProcessing}
-                className="px-3 py-1 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Delete Group
-              </button>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* New Group Modal */}
       {showCreate && (
@@ -356,28 +380,90 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
         </div>
       )}
 
-      {currentGroup && groupMembers.length > 0 && (
-        <div className="mt-4 p-4 bg-gray-50 border rounded-lg">
-          <h4 className="font-medium mb-3 text-gray-800 flex items-center">
-            <span className="text-lg mr-2">👥</span>
-            Group Members ({groupMembers.length})
+      {currentGroup && showMembers && (
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h4 className="font-semibold mb-3 text-blue-800 flex items-center justify-between">
+            <span className="flex items-center">
+              <span className="text-lg mr-2">👥</span>
+              {currentGroup.name} Members ({groupMembers.length})
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs bg-blue-100 px-2 py-1 rounded-full">
+                Group ID: {currentGroup.id}
+              </span>
+              <button
+                onClick={() => setShowMembers(false)}
+                className="text-blue-600 hover:text-blue-800 p-1"
+                title="Hide Members"
+              >
+                ✕
+              </button>
+            </div>
           </h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {groupMembers.map((member, idx) => (
-              <div key={idx} className="flex items-center space-x-2 p-2 bg-white rounded border">
-                <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-medium">
-                  {(member.users?.name || member.users?.email || 'U').charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-900 truncate">
-                    {member.users?.name || 'Unknown'}
-                  </div>
-                  <div className="text-xs text-gray-500 truncate">
-                    {member.users?.email}
-                  </div>
-                </div>
+          
+          {loadingMembers ? (
+            <div className="text-center py-6 text-gray-500">
+              <div className="text-2xl mb-2">👥</div>
+              <p className="text-sm">Loading group members...</p>
+              <div className="mt-2">
+                <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
               </div>
-            ))}
+            </div>
+          ) : groupMembers.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {groupMembers.map((member, idx) => {
+                const isAdmin = member.user_id === currentGroup.created_by
+                const isCurrentUser = member.user_id === user?.id
+                
+                return (
+                  <div key={idx} className={`flex items-center space-x-3 p-3 rounded-lg border-2 ${
+                    isAdmin ? 'bg-yellow-50 border-yellow-200' : 'bg-white border-gray-200'
+                  }`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold ${
+                      isAdmin ? 'bg-yellow-500' : 'bg-blue-500'
+                    }`}>
+                      {(member.users?.name || member.users?.email || 'U').charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2">
+                        <div className="text-sm font-semibold text-gray-900 truncate">
+                          {member.users?.name || member.users?.email?.split('@')[0] || 'Unknown'}
+                          {isCurrentUser && <span className="text-blue-600 ml-1">(You)</span>}
+                        </div>
+                        {isAdmin && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            👑 Admin
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500 truncate">
+                        {member.users?.email}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-4 text-gray-500">
+              <div className="text-2xl mb-2">❌</div>
+              <p className="text-sm">No group members found or failed to load.</p>
+              <button
+                onClick={fetchGroupMembers}
+                className="mt-2 px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+          
+          {/* Group Info */}
+          <div className="mt-4 pt-3 border-t border-blue-200">
+            <div className="flex flex-wrap gap-4 text-xs text-blue-600">
+              <span>👑 Admin: {groupMembers.find(m => m.user_id === currentGroup.created_by)?.users?.name || 'Unknown'}</span>
+              <span>📅 Created: {new Date(currentGroup.created_at).toLocaleDateString()}</span>
+              <span>👥 Total Members: {groupMembers.length}</span>
+            </div>
           </div>
         </div>
       )}
