@@ -13,13 +13,50 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
       setGroupMembers([])
       return
     }
-    
+
     try {
-      const { data } = await supabase
+      // First fetch group members user_ids
+      const { data: membersData, error: membersError } = await supabase
         .from('group_members')
-        .select('user_id, users(name, email)')
+        .select('user_id')
         .eq('group_id', currentGroup.id)
-      setGroupMembers(data || [])
+
+      if (membersError) {
+        console.error('Error fetching group members:', membersError)
+        setGroupMembers([])
+        return
+      }
+
+      if (!membersData || membersData.length === 0) {
+        setGroupMembers([])
+        return
+      }
+
+      // Extract user_ids
+      const userIds = membersData.map(m => m.user_id)
+
+      // Fetch user details for these user_ids
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, name, email')
+        .in('id', userIds)
+
+      if (usersError) {
+        console.error('Error fetching users:', usersError)
+        setGroupMembers([])
+        return
+      }
+
+      // Combine members with user info
+      const combined = membersData.map(member => {
+        const userInfo = usersData.find(u => u.id === member.user_id)
+        return {
+          user_id: member.user_id,
+          users: userInfo || null
+        }
+      })
+
+      setGroupMembers(combined)
     } catch (error) {
       console.error('Error fetching group members:', error)
       setGroupMembers([])
@@ -201,11 +238,11 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
                           // Find the group member who added this expense
                           const member = groupMembers.find(m => m.user_id === expense.user_id)
                           if (member?.users) {
-                            return member.users.name || member.users.email?.split('@')[0] || 'Group Member'
+                            return member.users.full_name || member.users.email?.split('@')[0] || 'Group Member'
                           }
                         }
                         // Fallback for unknown users
-                        return 'Group Member'
+                        return expense.paid_by || expense.user_name || expense.user_email?.split('@')[0] || 'Unknown User'
                       })()}
                     </td>
                     <td className="p-2">

@@ -122,22 +122,54 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
       setGroupMembers([])
       return
     }
-    
+
     setLoadingMembers(true)
     try {
       console.log('🔄 Fetching group members for group:', currentGroup.id)
-      const { data, error } = await supabase
+
+      // First fetch group members user_ids
+      const { data: membersData, error: membersError } = await supabase
         .from('group_members')
-        .select('user_id, users(name, email)')
-        .eq('group_id', currentGroup.id)
-      
-      if (error) {
-        console.error('❌ Error fetching group members:', error)
+        .select('user_id')
+        .eq('group_id', parseInt(currentGroup.id))
+
+      if (membersError) {
+        console.error('❌ Error fetching group members:', membersError)
         setGroupMembers([])
-      } else {
-        console.log('✅ Fetched group members:', data)
-        setGroupMembers(data || [])
+        return
       }
+
+      if (!membersData || membersData.length === 0) {
+        setGroupMembers([])
+        return
+      }
+
+      // Extract user_ids
+      const userIds = membersData.map(m => m.user_id)
+
+      // Fetch user details for these user_ids from profiles table
+      const { data: usersData, error: usersError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', userIds)
+
+      if (usersError) {
+        console.error('❌ Error fetching users:', usersError)
+        setGroupMembers([])
+        return
+      }
+
+      // Combine members with user info
+      const combined = membersData.map(member => {
+        const userInfo = usersData.find(u => u.id === member.user_id)
+        return {
+          user_id: member.user_id,
+          users: userInfo || null
+        }
+      })
+
+      console.log('✅ Fetched and combined group members:', combined)
+      setGroupMembers(combined)
     } catch (err) {
       console.error('❌ Unexpected error fetching group members:', err)
       setGroupMembers([])
@@ -427,7 +459,7 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2">
                         <div className="text-sm font-semibold text-gray-900 truncate">
-                          {member.users?.name || member.users?.email?.split('@')[0] || 'Unknown'}
+                          {member.users?.full_name || member.users?.email?.split('@')[0] || 'Unknown'}
                           {isCurrentUser && <span className="text-blue-600 ml-1">(You)</span>}
                         </div>
                         {isAdmin && (
