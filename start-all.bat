@@ -1,0 +1,29 @@
+@echo off
+echo Starting Personal Finance Manager (Full Stack)...
+echo.
+
+echo Killing any existing backend processes...
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8000') do (
+    echo Killing process %%a on port 8000...
+    taskkill /PID %%a /F >nul 2>&1
+)
+
+echo Waiting for port to be free...
+timeout /t 2 /nobreak >nul
+
+echo Starting backend server...
+start "PFM Backend" cmd /k "cd backend && python main.py"
+
+echo Waiting for backend to initialize...
+timeout /t 5 /nobreak >nul
+
+echo Starting frontend...
+start "PFM Frontend" cmd /k "npm start"
+
+echo.
+echo Both servers are starting...
+echo Backend: http://localhost:8000
+echo Frontend: http://localhost:3000
+echo.
+echo Press any key to close this window...
+pause >nul

@@ -15,7 +15,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "start:backend": "cd backend && python main.py",
-    "start:all": "concurrently \"npm run start:backend\" \"npm start\""
+    "kill:backend": "node scripts/kill-backend.js",
+    "start:all": "node scripts/start-all.js"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.16",

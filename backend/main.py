@@ -198,9 +198,40 @@ class ExpenseAnalyzer:
         if any(word in query_lower for word in ['how many', 'count', 'number']):
             return f"You have {analysis['count']} transactions in your {context} expenses, totaling Rs.{analysis['total']}."
 
+        # Who paid queries
+        if any(word in query_lower for word in ['who paid', 'who payed', 'paid by', 'payed by']):
+            # Look for specific category or item
+            category_found = None
+            for category in self.categories.keys():
+                if category in query_lower:
+                    category_found = category
+                    break
+            
+            if category_found:
+                # Find recent expenses in this category with paid_by info
+                category_expenses = [exp for exp in analysis['recent_expenses'] 
+                                   if exp.get('category', '').lower() == category_found]
+                if category_expenses:
+                    recent_with_payer = [exp for exp in category_expenses if exp.get('paid_by')]
+                    if recent_with_payer:
+                        latest = recent_with_payer[0]
+                        return f"The last {category_found} expense was Rs.{latest.get('amount', 0)} for {latest.get('item', 'item')} paid by {latest.get('paid_by', 'unknown')}."
+                    else:
+                        return f"I found recent {category_found} expenses but no payment information is recorded."
+                else:
+                    return f"No recent {category_found} expenses found."
+            else:
+                # General who paid query
+                recent_with_payer = [exp for exp in analysis['recent_expenses'] if exp.get('paid_by')]
+                if recent_with_payer:
+                    latest = recent_with_payer[0]
+                    return f"The most recent expense with payment info: Rs.{latest.get('amount', 0)} for {latest.get('item', 'item')} paid by {latest.get('paid_by', 'unknown')}."
+                else:
+                    return f"No recent expenses have payment information recorded."
+
         # Help/What can I ask queries
         if any(word in query_lower for word in ['help', 'what can', 'options']):
-            return f"You can ask me about:\n• Total expenses ('What are my expenses till now?')\n• Category breakdowns ('Show me my food expenses')\n• Recent transactions ('What are my recent expenses?')\n• Daily averages ('What's my daily spending?')\n• Comparisons ('What did I spend the most on?')"
+            return f"You can ask me about:\n• Total expenses ('What are my expenses till now?')\n• Category breakdowns ('Show me my food expenses')\n• Recent transactions ('What are my recent expenses?')\n• Daily averages ('What's my daily spending?')\n• Comparisons ('What did I spend the most on?')\n• Who paid ('Who paid for grocery last time?')"
 
         # Default comprehensive response
         top_category = analysis['top_categories'][0][0].title() if analysis['top_categories'] else "various categories"
@@ -297,6 +328,15 @@ async def chat_about_expenses(request: ChatRequest):
                 "context": context_type
             }
 
+            # Include recent expenses with payment info for Gemini
+            recent_expenses_text = ""
+            if analysis['recent_expenses']:
+                recent_list = []
+                for exp in analysis['recent_expenses'][:5]:
+                    paid_by = f" (paid by {exp.get('paid_by')})" if exp.get('paid_by') else ""
+                    recent_list.append(f"Rs.{exp.get('amount', 0)} on {exp.get('item', 'item')} - {exp.get('category', 'other')}{paid_by}")
+                recent_expenses_text = "\n- Recent expenses: " + "; ".join(recent_list)
+
             prompt = f"""
 You are a helpful financial assistant. Answer the user's question about their {context_type} expenses.
 
@@ -306,7 +346,7 @@ Expense data:
 - Total spent: Rs.{context_data['total_amount']}
 - Number of transactions: {context_data['transaction_count']}
 - Top spending categories: {', '.join([f"{cat}: Rs.{amt}" for cat, amt in context_data['top_categories']])}
-- Average daily spending: Rs.{context_data['average_daily']}
+- Average daily spending: Rs.{context_data['average_daily']}{recent_expenses_text}
 
 Instructions:
 1. Start your response with "Hi {user_name}!"
@@ -314,6 +354,7 @@ Instructions:
 3. Use the provided data to answer accurately
 4. Keep responses concise but informative
 5. Use "Rs." for currency amounts
+6. For "who paid" questions, look at the recent expenses data
 """
 
             gemini_response = get_gemini_response(prompt)

@@ -10,7 +10,7 @@ const getApiBaseUrl = () => {
   return 'http://localhost:8000' // fallback for development
 }
 
-export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGroup }) {
+export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGroup, isVisible = true }) {
   const [input, setInput] = useState('')
   const [inputMessages, setInputMessages] = useState([])
   const [chatMessages, setChatMessages] = useState([])
@@ -80,6 +80,17 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
     } else {
       setChatMessages(prev => [...prev, { type: 'user', text: input }])
     }
+
+    // Set timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      setLoading(false)
+      const errorMsg = '❌ Request timed out. Please check if the backend server is running.'
+      if (mode === 'input') {
+        setInputMessages(prev => [...prev, { type: 'system', text: errorMsg }])
+      } else {
+        setChatMessages(prev => [...prev, { type: 'system', text: errorMsg }])
+      }
+    }, 30000) // 30 second timeout
 
     try {
       if (mode === 'input') {
@@ -185,10 +196,12 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
       } else {
         setChatMessages(prev => [...prev, { type: 'system', text: errorMessage }])
       }
+    } finally {
+      // Always clear timeout and reset loading
+      clearTimeout(timeoutId)
+      setLoading(false)
+      setInput('')
     }
-
-    setLoading(false)
-    setInput('')
   }
 
   const clearChat = () => {
@@ -215,7 +228,7 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
   }
 
   return (
-    <div className="p-4 sm:p-6">
+    <div className="p-4 sm:p-6" style={{ display: isVisible ? 'block' : 'none' }}>
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
         <div>
           <h2 className="text-xl font-semibold text-gray-800">

@@ -114,9 +114,13 @@ function App() {
           
           {/* Content area with better mobile spacing */}
           <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-            <div style={{ display: activeTab === 'chat' ? 'block' : 'none' }}>
-              <Chat onExpenseAdded={handleExpenseAdded} onTableRefresh={handleTableRefresh} user={user} currentGroup={currentGroup} />
-            </div>
+            <Chat 
+              onExpenseAdded={handleExpenseAdded} 
+              onTableRefresh={handleTableRefresh} 
+              user={user} 
+              currentGroup={currentGroup}
+              isVisible={activeTab === 'chat'}
+            />
             {activeTab === 'table' && <Table ref={tableRef} expenses={expenses} currentGroup={currentGroup} user={user} />}
             {activeTab === 'analytics' && <EnhancedAnalytics currentGroup={currentGroup} user={user} />}
           </div>
