@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Auth from './components/Auth'
 import ResetPassword from './components/ResetPassword'
@@ -12,12 +12,31 @@ import { ToastProvider } from './components/Toast'
 import { supabase } from './supabase'
 
 function App() {
-  const [activeTab, setActiveTab] = useState('chat')
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('pfm_active_tab') || 'chat')
   const [expenses, setExpenses] = useState([])
   const [user, setUser] = useState(null)
-  const [currentGroup, setCurrentGroup] = useState(null)
+  const [currentGroup, setCurrentGroup] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pfm_current_group')
+      return saved ? JSON.parse(saved) : null
+    } catch { return null }
+  })
   const tableRef = useRef()
   const [toast, setToast] = useState(null)
+  
+  // Save active tab to localStorage
+  useEffect(() => {
+    localStorage.setItem('pfm_active_tab', activeTab)
+  }, [activeTab])
+  
+  // Save current group to localStorage
+  useEffect(() => {
+    if (currentGroup) {
+      localStorage.setItem('pfm_current_group', JSON.stringify(currentGroup))
+    } else {
+      localStorage.removeItem('pfm_current_group')
+    }
+  }, [currentGroup])
 
   const handleExpenseAdded = async (newExpenses) => {
     try {

@@ -38,7 +38,14 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
         console.error('Error fetching groups:', error)
       } else {
         console.log('Fetched groups:', data)
-        setGroups(data?.map(item => item.groups) || [])
+        const fetchedGroups = data?.map(item => item.groups) || []
+        setGroups(fetchedGroups)
+        
+        // Validate current group still exists
+        if (currentGroup && !fetchedGroups.find(g => g.id === currentGroup.id)) {
+          console.log('Current group no longer exists, switching to personal')
+          onGroupChange(null)
+        }
       }
     } catch (err) {
       console.error('Unexpected error fetching groups:', err)
