@@ -12,7 +12,8 @@ const getApiBaseUrl = () => {
 
 export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGroup }) {
   const [input, setInput] = useState('')
-  const [messages, setMessages] = useState([])
+  const [inputMessages, setInputMessages] = useState([])
+  const [chatMessages, setChatMessages] = useState([])
   const [loading, setLoading] = useState(false)
   const [mode, setMode] = useState('input') // 'input' or 'chat'
   const [expensesData, setExpensesData] = useState([])
@@ -72,7 +73,13 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
     if (!input.trim()) return
 
     setLoading(true)
-    setMessages(prev => [...prev, { type: 'user', text: input }])
+    
+    // Add user message to appropriate message array
+    if (mode === 'input') {
+      setInputMessages(prev => [...prev, { type: 'user', text: input }])
+    } else {
+      setChatMessages(prev => [...prev, { type: 'user', text: input }])
+    }
 
     try {
       if (mode === 'input') {
@@ -83,14 +90,14 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
         })
         const { expenses, reply } = response.data
         console.log('✅ Parse response:', { expenses, reply })
-        setMessages(prev => [...prev, { type: 'system', text: reply }])
+        setInputMessages(prev => [...prev, { type: 'system', text: reply }])
         if (expenses && expenses.length > 0) {
           try {
             await onExpenseAdded(expenses)
-            setMessages(prev => [...prev, { type: 'system', text: '✅ Expenses saved successfully!' }])
+            setInputMessages(prev => [...prev, { type: 'system', text: '✅ Expenses saved successfully!' }])
           } catch (error) {
             console.error('❌ Database save error:', error)
-            setMessages(prev => [...prev, { type: 'system', text: '❌ Error saving to database: ' + error.message }])
+            setInputMessages(prev => [...prev, { type: 'system', text: '❌ Error saving to database: ' + error.message }])
           }
         }
       } else {
@@ -146,9 +153,9 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
         console.log('✅ Chat response:', { reply, error })
         
         if (error) {
-          setMessages(prev => [...prev, { type: 'system', text: reply + '\n\n⚠️ There was an error processing your request.' }])
+          setChatMessages(prev => [...prev, { type: 'system', text: reply + '\n\n⚠️ There was an error processing your request.' }])
         } else {
-          setMessages(prev => [...prev, { type: 'system', text: reply }])
+          setChatMessages(prev => [...prev, { type: 'system', text: reply }])
         }
       }
     } catch (error) {
@@ -172,7 +179,12 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
         errorMessage = `❌ Unexpected error: ${error.message}`
       }
       
-      setMessages(prev => [...prev, { type: 'system', text: errorMessage }])
+      // Add error message to appropriate message array
+      if (mode === 'input') {
+        setInputMessages(prev => [...prev, { type: 'system', text: errorMessage }])
+      } else {
+        setChatMessages(prev => [...prev, { type: 'system', text: errorMessage }])
+      }
     }
 
     setLoading(false)
@@ -180,7 +192,11 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
   }
 
   const clearChat = () => {
-    setMessages([])
+    if (mode === 'input') {
+      setInputMessages([])
+    } else {
+      setChatMessages([])
+    }
   }
 
   // Fallback response when backend is unavailable
@@ -247,30 +263,37 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
       
       {/* Messages Area */}
       <div className="h-64 sm:h-80 overflow-y-auto mb-6 space-y-3 bg-gray-50 rounded-lg p-4">
-        {messages.length === 0 && (
-          <div className="text-center text-gray-500 py-8">
-            <div className="text-4xl mb-2">{mode === 'input' ? '📝' : '💬'}</div>
-            <p className="text-sm">
-              {mode === 'input' 
-                ? 'Start by typing your expenses naturally'
-                : 'Ask me anything about personal finance!'}
-            </p>
-          </div>
-        )}
-        {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-xs sm:max-w-md px-4 py-2 rounded-lg ${
-              msg.type === 'user' 
-                ? 'bg-blue-500 text-white' 
-                : 'bg-white border shadow-sm'
-            }`}>
-              <div className="text-xs opacity-75 mb-1">
-                {msg.type === 'user' ? 'You' : (mode === 'input' ? 'Parser' : 'Assistant')}
-              </div>
-              <div className="text-sm">{msg.text}</div>
-            </div>
-          </div>
-        ))}
+        {(() => {
+          const currentMessages = mode === 'input' ? inputMessages : chatMessages
+          return (
+            <>
+              {currentMessages.length === 0 && (
+                <div className="text-center text-gray-500 py-8">
+                  <div className="text-4xl mb-2">{mode === 'input' ? '📝' : '💬'}</div>
+                  <p className="text-sm">
+                    {mode === 'input' 
+                      ? 'Start by typing your expenses naturally'
+                      : 'Ask me anything about personal finance!'}
+                  </p>
+                </div>
+              )}
+              {currentMessages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-xs sm:max-w-md px-4 py-2 rounded-lg ${
+                    msg.type === 'user' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-white border shadow-sm'
+                  }`}>
+                    <div className="text-xs opacity-75 mb-1">
+                      {msg.type === 'user' ? 'You' : (mode === 'input' ? 'Parser' : 'Assistant')}
+                    </div>
+                    <div className="text-sm">{msg.text}</div>
+                  </div>
+                </div>
+              ))}
+            </>
+          )
+        })()}
         {loading && (
           <div className="flex justify-start">
             <div className="bg-white border shadow-sm px-4 py-2 rounded-lg">

@@ -155,14 +155,14 @@ class ExpenseAnalyzer:
 
         # Total/Summary queries
         if any(word in query_lower for word in ['total', 'spent', 'expense']) and any(word in query_lower for word in ['till now', 'so far', 'overall', 'all']):
-            return f"Your {context} total expenses are ₹{analysis['total']} across {analysis['count']} transactions over {analysis['days_tracked']} days."
+            return f"Your {context} total expenses are Rs.{analysis['total']} across {analysis['count']} transactions over {analysis['days_tracked']} days."
 
         # Specific category queries
         for category in self.categories.keys():
             if category in query_lower:
                 amount = analysis['categories'].get(category, 0)
                 if amount > 0:
-                    return f"You've spent ₹{amount} on {category} in your {context} expenses."
+                    return f"You've spent Rs.{amount} on {category} in your {context} expenses."
                 else:
                     return f"You haven't spent anything on {category} in your {context} expenses yet."
 
@@ -172,7 +172,7 @@ class ExpenseAnalyzer:
                 breakdown = []
                 for cat, amount in analysis['top_categories']:
                     percentage = (amount / analysis['total'] * 100) if analysis['total'] > 0 else 0
-                    breakdown.append(f"• {cat.title()}: ₹{amount} ({percentage:.1f}%)")
+                    breakdown.append(f"• {cat.title()}: Rs.{amount} ({percentage:.1f}%)")
                 return f"Your {context} expense breakdown:\n" + "\n".join(breakdown)
 
         # Recent expenses
@@ -181,22 +181,22 @@ class ExpenseAnalyzer:
                 recent = []
                 for exp in analysis['recent_expenses'][:3]:
                     date_str = f" on {exp.get('date', 'unknown date')}" if exp.get('date') else ""
-                    recent.append(f"• ₹{exp.get('amount', 0)} on {exp.get('item', 'item')} ({exp.get('category', 'other')}){date_str}")
+                    recent.append(f"• Rs.{exp.get('amount', 0)} on {exp.get('item', 'item')} ({exp.get('category', 'other')}){date_str}")
                 return f"Your recent {context} expenses:\n" + "\n".join(recent)
 
         # Average/Daily spending
         if any(word in query_lower for word in ['average', 'daily', 'per day']):
-            return f"Your average daily {context} spending is ₹{analysis['average_per_day']} over {analysis['days_tracked']} days."
+            return f"Your average daily {context} spending is Rs.{analysis['average_per_day']} over {analysis['days_tracked']} days."
 
         # Comparison queries
         if 'most' in query_lower and ('spent' in query_lower or 'expensive' in query_lower):
             if analysis['top_categories']:
                 top_cat, top_amount = analysis['top_categories'][0]
-                return f"You've spent the most on {top_cat.title()} with ₹{top_amount} in your {context} expenses."
+                return f"You've spent the most on {top_cat.title()} with Rs.{top_amount} in your {context} expenses."
 
         # Count queries
         if any(word in query_lower for word in ['how many', 'count', 'number']):
-            return f"You have {analysis['count']} transactions in your {context} expenses, totaling ₹{analysis['total']}."
+            return f"You have {analysis['count']} transactions in your {context} expenses, totaling Rs.{analysis['total']}."
 
         # Help/What can I ask queries
         if any(word in query_lower for word in ['help', 'what can', 'options']):
@@ -204,7 +204,7 @@ class ExpenseAnalyzer:
 
         # Default comprehensive response
         top_category = analysis['top_categories'][0][0].title() if analysis['top_categories'] else "various categories"
-        return f"Your {context} expenses: ₹{analysis['total']} total across {analysis['count']} transactions. Top spending: {top_category}. Daily average: ₹{analysis['average_per_day']}."
+        return f"Your {context} expenses: Rs.{analysis['total']} total across {analysis['count']} transactions. Top spending: {top_category}. Daily average: Rs.{analysis['average_per_day']}."
 
 # Initialize analyzer
 expense_analyzer = ExpenseAnalyzer()
@@ -287,7 +287,7 @@ async def chat_about_expenses(request: ChatRequest):
 
         # Try Gemini first for more natural responses
         if gemini_available:
-            print("🤖 Using Gemini AI...")
+            print("[INFO] Using Gemini AI...")
             # Create detailed context for Gemini
             context_data = {
                 "total_amount": analysis['total'],
@@ -298,23 +298,23 @@ async def chat_about_expenses(request: ChatRequest):
             }
 
             prompt = f"""
-            You are a helpful financial assistant. Answer the user's question about their {context_type} expenses.
+You are a helpful financial assistant. Answer the user's question about their {context_type} expenses.
 
-            User question: "{request.text}"
+User question: "{request.text}"
 
-            Expense data:
-            - Total spent: ₹{context_data['total_amount']}
-            - Number of transactions: {context_data['transaction_count']}
-            - Top spending categories: {', '.join([f"{cat}: ₹{amt}" for cat, amt in context_data['top_categories']])}
-            - Average daily spending: ₹{context_data['average_daily']}
+Expense data:
+- Total spent: Rs.{context_data['total_amount']}
+- Number of transactions: {context_data['transaction_count']}
+- Top spending categories: {', '.join([f"{cat}: Rs.{amt}" for cat, amt in context_data['top_categories']])}
+- Average daily spending: Rs.{context_data['average_daily']}
 
-            Instructions:
-            1. Start your response with "Hi {user_name}!"
-            2. Be conversational and helpful
-            3. Use the provided data to answer accurately
-            4. Keep responses concise but informative
-            5. Use Indian Rupee (₹) symbol for amounts
-            """
+Instructions:
+1. Start your response with "Hi {user_name}!"
+2. Be conversational and helpful
+3. Use the provided data to answer accurately
+4. Keep responses concise but informative
+5. Use "Rs." for currency amounts
+"""
 
             gemini_response = get_gemini_response(prompt)
             if gemini_response:
