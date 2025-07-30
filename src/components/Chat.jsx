@@ -12,11 +12,59 @@ const getApiBaseUrl = () => {
 
 export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGroup, isVisible = true }) {
   const [input, setInput] = useState('')
-  const [inputMessages, setInputMessages] = useState([])
-  const [chatMessages, setChatMessages] = useState([])
   const [loading, setLoading] = useState(false)
-  const [mode, setMode] = useState('input') // 'input' or 'chat'
+  const [mode, setMode] = useState(() => localStorage.getItem('pfm_chat_mode') || 'input')
   const [expensesData, setExpensesData] = useState([])
+  const [wsConnected, setWsConnected] = useState(false)
+  
+  // WebSocket connection
+  useEffect(() => {
+    const ws = new WebSocket('ws://localhost:8000/ws')
+    
+    ws.onopen = () => {
+      console.log('WebSocket connected')
+      setWsConnected(true)
+    }
+    
+    ws.onclose = () => {
+      console.log('WebSocket disconnected')
+      setWsConnected(false)
+    }
+    
+    ws.onerror = (error) => {
+      console.log('WebSocket error:', error)
+      setWsConnected(false)
+    }
+    
+    return () => {
+      ws.close()
+    }
+  }, [])
+  
+  // Load messages from localStorage
+  const [inputMessages, setInputMessages] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('pfm_input_messages') || '[]')
+    } catch { return [] }
+  })
+  const [chatMessages, setChatMessages] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('pfm_chat_messages') || '[]')
+    } catch { return [] }
+  })
+
+  // Save messages to localStorage
+  useEffect(() => {
+    localStorage.setItem('pfm_input_messages', JSON.stringify(inputMessages))
+  }, [inputMessages])
+  
+  useEffect(() => {
+    localStorage.setItem('pfm_chat_messages', JSON.stringify(chatMessages))
+  }, [chatMessages])
+  
+  useEffect(() => {
+    localStorage.setItem('pfm_chat_mode', mode)
+  }, [mode])
 
   useEffect(() => {
     if (user && mode === 'chat') {
@@ -207,8 +255,10 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
   const clearChat = () => {
     if (mode === 'input') {
       setInputMessages([])
+      localStorage.removeItem('pfm_input_messages')
     } else {
       setChatMessages([])
+      localStorage.removeItem('pfm_chat_messages')
     }
   }
 
@@ -237,6 +287,7 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
           {mode === 'chat' && (
             <p className="text-sm text-gray-600 mt-1">
               {currentGroup ? `🏢 Group: ${currentGroup.name}` : '👤 Personal Mode'}
+              <span className={`ml-2 inline-block w-2 h-2 rounded-full ${wsConnected ? 'bg-green-500' : 'bg-red-500'}`} title={wsConnected ? 'Connected' : 'Disconnected'}></span>
             </p>
           )}
         </div>
