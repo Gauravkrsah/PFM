@@ -107,6 +107,20 @@ class ExpenseParser:
                 'paid_by': person.title()
             }
         
+        # Pattern 5: "item amount" like "grocery 300" or "biryani 500"
+        pattern5 = r'^([a-zA-Z\s]+?)\s+(\d+)$'
+        match5 = re.match(pattern5, text)
+        if match5:
+            item, amount = match5.groups()
+            item = self._clean_item_name(item)
+            category = self._categorize(item)
+            return {
+                'amount': int(amount),
+                'item': item.lower(),
+                'category': category,
+                'remarks': item.title()
+            }
+        
         # Fallback: Extract amount and treat rest as item
         amount_match = re.search(r'Rs\.?(\d+)|Rs.?(\d+)', text)
         if amount_match:
