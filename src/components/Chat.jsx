@@ -6,7 +6,7 @@ import { supabase } from '../supabase'
 const getApiBaseUrl = () => {
   // For mobile app, use deployed backend
   if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-    const railwayUrl = 'https://web-production-YOUR_ID.up.railway.app' // Replace YOUR_ID with actual Railway ID
+    const railwayUrl = 'https://pfm-production.up.railway.app'
     console.log('🚀 Mobile app using Railway URL:', railwayUrl)
     return railwayUrl
   }
