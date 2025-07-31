@@ -4,6 +4,12 @@ import { supabase } from '../supabase'
 
 // Get API base URL from config
 const getApiBaseUrl = () => {
+  // For mobile app, use deployed backend
+  if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+    const railwayUrl = 'https://web-production-YOUR_ID.up.railway.app' // Replace YOUR_ID with actual Railway ID
+    console.log('🚀 Mobile app using Railway URL:', railwayUrl)
+    return railwayUrl
+  }
   if (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) {
     return window.APP_CONFIG.API_BASE_URL
   }
@@ -19,7 +25,14 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
   
   // WebSocket connection
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8000/ws')
+    // Skip WebSocket in mobile app for now
+    if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+      setWsConnected(false)
+      return
+    }
+    
+    const wsUrl = getApiBaseUrl().replace('http', 'ws') + '/ws'
+    const ws = new WebSocket(wsUrl)
     
     ws.onopen = () => {
       console.log('WebSocket connected')

@@ -76,7 +76,7 @@ export default function Analytics() {
       </div>
       
       <div className="mt-6 p-4 bg-gray-50 rounded">
-        <div className="text-2xl font-bold">₹{totalSpend.toLocaleString()}</div>
+        <div className="text-2xl font-bold">Rs.{totalSpend.toLocaleString()}</div>
         <div className="text-gray-600">Total Spend</div>
       </div>
     </div>

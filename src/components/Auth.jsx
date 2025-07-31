@@ -5,8 +5,13 @@ import { useToast } from './Toast'
 export default function Auth({ onAuth }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [otp, setOtp] = useState('')
   const [isSignUp, setIsSignUp] = useState(false)
   const [isForgotPassword, setIsForgotPassword] = useState(false)
+  const [isOtpVerification, setIsOtpVerification] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [user, setUser] = useState(null)
   const toast = useToast()
@@ -36,7 +41,22 @@ export default function Auth({ onAuth }) {
     setLoading(true)
     
     try {
-      if (isForgotPassword) {
+      if (isOtpVerification) {
+        // Handle OTP verification
+        const { data, error } = await supabase.auth.verifyOtp({
+          email,
+          token: otp,
+          type: 'signup'
+        })
+        
+        if (error) {
+          toast.error('Invalid OTP: ' + error.message)
+        } else {
+          toast.success('Account verified successfully!')
+          setIsOtpVerification(false)
+          setOtp('')
+        }
+      } else if (isForgotPassword) {
         // Handle password reset
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/reset-password`
@@ -49,20 +69,38 @@ export default function Auth({ onAuth }) {
           setIsForgotPassword(false)
           setEmail('')
         }
-      } else {
-        // Handle sign in/sign up
-        const { data, error } = isSignUp
-          ? await supabase.auth.signUp({ email, password })
-          : await supabase.auth.signInWithPassword({ email, password })
+      } else if (isSignUp) {
+        // Validate password confirmation
+        if (password !== confirmPassword) {
+          toast.error('Passwords do not match!')
+          setLoading(false)
+          return
+        }
+        
+        // Handle sign up with OTP
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password
+        })
         
         if (error) {
           toast.error('Error: ' + error.message)
-        } else if (isSignUp) {
-          if (data.user && !data.session) {
-            toast.info('Please check your email and click the confirmation link to activate your account!')
-          } else {
-            toast.success('Account created successfully!')
-          }
+        } else if (data.user && !data.session) {
+          // Email confirmation required
+          toast.success('Verification code sent to your email!')
+          setIsOtpVerification(true)
+        } else {
+          // Instant signup (email confirmation disabled)
+          toast.success('Account created successfully!')
+        }
+      } else {
+        // Handle sign in
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+        
+        if (error) {
+          toast.error('Error: ' + error.message)
+        } else {
+          toast.success('Welcome back!')
         }
       }
     } catch (err) {
@@ -80,6 +118,28 @@ export default function Auth({ onAuth }) {
       user_metadata: { name: 'Demo User' }
     }
     onAuth(mockUser)
+  }
+  
+  const resendOtp = async () => {
+    setLoading(true)
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+        options: {
+          emailRedirectTo: undefined
+        }
+      })
+      
+      if (error) {
+        toast.error('Error: ' + error.message)
+      } else {
+        toast.success('New verification code sent!')
+      }
+    } catch (err) {
+      toast.error('Error resending code')
+    }
+    setLoading(false)
   }
 
   const handleLogout = async () => {
@@ -113,34 +173,88 @@ export default function Auth({ onAuth }) {
         
         <div className="bg-white rounded-2xl shadow-xl p-8 border">
           <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">
-            {isForgotPassword ? 'Reset Password' : (isSignUp ? 'Create Account' : 'Welcome Back')}
+            {isOtpVerification ? 'Verify Your Email' : 
+             isForgotPassword ? 'Reset Password' : 
+             (isSignUp ? 'Create Account' : 'Welcome Back')}
           </h2>
           
           <form onSubmit={handleAuth} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-              <input
-                type="email"
-                placeholder="Enter your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                required
-              />
-            </div>
-            
-            {!isForgotPassword && (
+            {isOtpVerification ? (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Verification Code</label>
                 <input
-                  type="password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  type="text"
+                  placeholder="Enter 6-digit code from email"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-center text-lg tracking-widest"
+                  maxLength={6}
                   required
                 />
+                <p className="text-sm text-gray-600 mt-2 text-center">
+                  Code sent to {email}
+                </p>
               </div>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                  <input
+                    type="email"
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    required
+                  />
+                </div>
+                
+                {!isForgotPassword && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      >
+                        {showPassword ? '🙈' : '👁️'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {isSignUp && !isForgotPassword && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Confirm your password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      >
+                        {showConfirmPassword ? '🙈' : '👁️'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
             
             <button
@@ -154,16 +268,41 @@ export default function Auth({ onAuth }) {
                   <span>Processing...</span>
                 </div>
               ) : (
-                isForgotPassword ? 'Send Reset Email' : (isSignUp ? 'Create Account' : 'Sign In')
+                isOtpVerification ? 'Verify Code' :
+                isForgotPassword ? 'Send Reset Email' : 
+                (isSignUp ? 'Create Account' : 'Sign In')
               )}
             </button>
           </form>
           
           <div className="mt-6 text-center space-y-3">
-            {!isForgotPassword ? (
+            {isOtpVerification ? (
               <>
                 <button
-                  onClick={() => setIsSignUp(!isSignUp)}
+                  onClick={resendOtp}
+                  disabled={loading}
+                  className="text-blue-600 hover:text-blue-800 font-medium transition-colors block w-full disabled:opacity-50"
+                >
+                  Resend Code
+                </button>
+                <button
+                  onClick={() => {
+                    setIsOtpVerification(false)
+                    setOtp('')
+                  }}
+                  className="text-gray-600 hover:text-gray-800 transition-colors block w-full"
+                >
+                  ← Back to Sign Up
+                </button>
+              </>
+            ) : !isForgotPassword ? (
+              <>
+                <button
+                  onClick={() => {
+                    setIsSignUp(!isSignUp)
+                    setPassword('')
+                    setConfirmPassword('')
+                  }}
                   className="text-blue-600 hover:text-blue-800 font-medium transition-colors block w-full"
                 >
                   {isSignUp ? 'Already have an account? Sign in' : 'Need an account? Sign up'}
@@ -190,17 +329,19 @@ export default function Auth({ onAuth }) {
               </button>
             )}
             
-            <div className="border-t pt-3">
-              <button
-                onClick={handleDemoMode}
-                className="w-full py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
-              >
-                🚀 Try Demo Mode
-              </button>
-              <p className="text-xs text-gray-500 mt-1">
-                Skip authentication and explore with sample data
-              </p>
-            </div>
+            {!isOtpVerification && (
+              <div className="border-t pt-3">
+                <button
+                  onClick={handleDemoMode}
+                  className="w-full py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                >
+                  🚀 Try Demo Mode
+                </button>
+                <p className="text-xs text-gray-500 mt-1">
+                  Skip authentication and explore with sample data
+                </p>
+              </div>
+            )}
           </div>
         </div>
         

@@ -209,20 +209,20 @@ export default function EnhancedAnalytics({ currentGroup, user }) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
           <h3 className="font-medium text-blue-800 mb-1">💰 Total Spent</h3>
-          <p className="text-2xl font-bold text-blue-600">₹{analytics.totalSpent.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-blue-600">Rs.{analytics.totalSpent.toLocaleString()}</p>
           <p className="text-xs text-blue-500">Last {timeRange} days</p>
         </div>
         
         <div className="bg-green-50 p-4 rounded-lg border border-green-200">
           <h3 className="font-medium text-green-800 mb-1">📊 Daily Average</h3>
-          <p className="text-2xl font-bold text-green-600">₹{analytics.dailyAverage.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-green-600">Rs.{analytics.dailyAverage.toLocaleString()}</p>
           <p className="text-xs text-green-500">Per day spending</p>
         </div>
         
         <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
           <h3 className="font-medium text-purple-800 mb-1">🎯 Top Expense</h3>
           <p className="text-lg font-bold text-purple-600">
-            {analytics.topExpense ? `₹${analytics.topExpense.amount}` : 'N/A'}
+            {analytics.topExpense ? `Rs.${analytics.topExpense.amount}` : 'N/A'}
           </p>
           <p className="text-xs text-purple-500">
             {analytics.topExpense?.remarks || 'No expenses'}
@@ -248,7 +248,7 @@ export default function EnhancedAnalytics({ currentGroup, user }) {
               <div key={category} className="space-y-1">
                 <div className="flex justify-between text-sm">
                   <span className="capitalize font-medium">{category}</span>
-                  <span className="font-bold">₹{amount.toLocaleString()} ({getCategoryPercentage(amount)}%)</span>
+                  <span className="font-bold">Rs.{amount.toLocaleString()} ({getCategoryPercentage(amount)}%)</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div 
@@ -271,7 +271,7 @@ export default function EnhancedAnalytics({ currentGroup, user }) {
                 <div key={user} className="space-y-1">
                   <div className="flex justify-between text-sm">
                     <span className="font-medium">{user}</span>
-                    <span className="font-bold">₹{amount.toLocaleString()}</span>
+                    <span className="font-bold">Rs.{amount.toLocaleString()}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
@@ -294,7 +294,7 @@ export default function EnhancedAnalytics({ currentGroup, user }) {
                 const height = (amount / maxAmount) * 100
                 return (
                   <div key={month} className="flex-1 flex flex-col items-center">
-                    <div className="text-xs mb-1 font-medium">₹{amount.toLocaleString()}</div>
+                    <div className="text-xs mb-1 font-medium">Rs.{amount.toLocaleString()}</div>
                     <div 
                       className="w-full bg-blue-500 rounded-t transition-all duration-300" 
                       style={{ height: `${height}%` }}

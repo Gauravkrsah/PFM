@@ -225,7 +225,7 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
                       {expense.amount === 0 ? (
                         <span className="text-red-500">Amount needed</span>
                       ) : (
-                        `₹${expense.amount}`
+                        `Rs.${expense.amount}`
                       )}
                     </td>
                     <td className="p-2">{expense.remarks}</td>

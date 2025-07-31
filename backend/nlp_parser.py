@@ -108,11 +108,11 @@ class ExpenseParser:
             }
         
         # Fallback: Extract amount and treat rest as item
-        amount_match = re.search(r'Rs\.?(\d+)|₹?(\d+)', text)
+        amount_match = re.search(r'Rs\.?(\d+)|Rs.?(\d+)', text)
         if amount_match:
             amount = int(amount_match.group(1) or amount_match.group(2))
             # Remove amount and common words to get clean description
-            description = re.sub(r'Rs\.?\d+|₹?\d+', '', text)
+            description = re.sub(r'Rs\.?\d+|Rs.?\d+', '', text)
             description = re.sub(r'\b(on|for|spent|the|paid|by)\b', '', description, flags=re.IGNORECASE)
             description = re.sub(r'\s+', ' ', description).strip()
             description = self._clean_item_name(description)
