@@ -269,11 +269,16 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
                     <td className="p-2">
                       {(() => {
                         const userId = expense.user_id
+                        console.log(`🔍 Expense ${expense.id}: userId=${userId}, userProfiles:`, userProfiles)
                         if (userId && userProfiles[userId]) {
                           const profile = userProfiles[userId]
-                          return profile.full_name || profile.email?.split('@')[0] || 'Unknown User'
+                          const name = profile.full_name || profile.email?.split('@')[0] || 'Unknown User'
+                          console.log(`✅ Found profile for ${userId}:`, name)
+                          return name
                         }
-                        return expense.added_by || expense.user_name || 'Unknown User'
+                        const fallback = expense.added_by || expense.user_name || 'Unknown User'
+                        console.log(`⚠️ No profile for ${userId}, using fallback:`, fallback)
+                        return fallback
                       })()}
                     </td>
                     <td className="p-2">
