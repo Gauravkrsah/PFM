@@ -193,7 +193,7 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
           }
         }
 
-        let chatPayload = {
+        const chatPayload = {
           text: input,
           user_id: currentUser?.id,
           user_email: currentUser?.email,
