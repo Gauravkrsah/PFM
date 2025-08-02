@@ -261,6 +261,62 @@ class ExpenseAnalyzer:
 # Initialize analyzer
 expense_analyzer = ExpenseAnalyzer()
 
+async def ai_enhanced_parse(text):
+    """Use AI to intelligently parse expense text"""
+    try:
+        prompt = f"""
+You are an intelligent expense parser. Parse the following text into structured expense data.
+
+Text: "{text}"
+
+Rules:
+1. Detect expenses, loans, and financial transactions
+2. Understand Nepali words: khana=food, chiya=tea, dudh=milk, tarkari=vegetables, etc.
+3. Categorize intelligently: Food, Transport, Groceries, Shopping, Utilities, Entertainment, Rent, Loan
+4. Extract amount, item, category, and who paid (if mentioned)
+5. Handle multiple expenses in one text
+
+Return ONLY a JSON object with this exact structure:
+{{
+  "expenses": [
+    {{
+      "amount": number,
+      "item": "string",
+      "category": "string",
+      "remarks": "string",
+      "paid_by": "string or null"
+    }}
+  ],
+  "reply": "SUCCESS: Added Rs.X -> Category (Item)"
+}}
+
+Examples:
+- "khana 400" → {{"amount": 400, "item": "food", "category": "Food", "remarks": "Food", "paid_by": null}}
+- "gave ram 500 loan" → {{"amount": 500, "item": "loan", "category": "Loan", "remarks": "Loan given to Ram", "paid_by": "Ram"}}
+"""
+        
+        response = get_gemini_response(prompt)
+        if response:
+            # Try to extract JSON from response
+            import json
+            import re
+            
+            # Find JSON in response
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            if json_match:
+                json_str = json_match.group(0)
+                parsed_data = json.loads(json_str)
+                
+                # Validate structure
+                if 'expenses' in parsed_data and 'reply' in parsed_data:
+                    return parsed_data
+        
+        return None
+        
+    except Exception as e:
+        print(f"[AI_PARSE] Error: {e}")
+        return None
+
 @app.get("/")
 async def root():
     """Root endpoint"""
@@ -277,14 +333,21 @@ async def health_check():
 
 @app.post("/parse")
 async def parse_expense(request: ParseRequest):
-    """Parse expense text and return structured expense data"""
+    """Parse expense text and return structured expense data with AI enhancement"""
     try:
         print(f"[PARSE] Received parse request: {request.text}")
         
-        # Use the NLP parser to extract expenses
+        # Try AI-enhanced parsing first if Gemini is available
+        if gemini_available:
+            ai_result = await ai_enhanced_parse(request.text)
+            if ai_result:
+                print(f"[PARSE] AI parsed {len(ai_result['expenses'])} expenses")
+                return ai_result
+        
+        # Fallback to rule-based parser
         expenses, reply = parser.parse(request.text)
         
-        print(f"[PARSE] Parsed {len(expenses)} expenses")
+        print(f"[PARSE] Rule-based parsed {len(expenses)} expenses")
         print(f"[PARSE] Reply: {reply}")
         
         return {
@@ -349,7 +412,7 @@ async def chat_about_expenses(request: ChatRequest):
 
         # Try Gemini first for more natural responses
         if gemini_available:
-            print("[INFO] Using Gemini AI...")
+            print("[CHAT] Using Gemini AI...")
             # Create detailed context for Gemini
             context_data = {
                 "total_amount": analysis['total'],
