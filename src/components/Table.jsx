@@ -97,26 +97,56 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
   const fetchExpenses = async () => {
     setLoading(true)
     try {
-      let query = supabase.from('expenses').select('*')
+      const apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || 'https://pfm-production.up.railway.app'
       
-      if (currentGroup) {
-        query = query.eq('group_id', currentGroup.id)
-      } else {
-        query = query.eq('user_id', user?.id).is('group_id', null)
+      const requestData = {
+        user_id: user?.id,
+        group_id: currentGroup?.id || null
       }
       
-      const { data, error } = await query.order('date', { ascending: false })
+      const response = await fetch(`${apiBaseUrl}/api/get-expenses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      })
       
-      if (error) {
-        console.error('Error fetching expenses:', error)
-        setData([])
+      if (response.ok) {
+        const result = await response.json()
+        if (result.expenses) {
+          setData(result.expenses)
+        } else {
+          setData([])
+        }
       } else {
-        setData(data || [])
-        await fetchUserProfiles(data || [])
+        throw new Error('API failed')
       }
     } catch (error) {
       console.error('Error fetching expenses:', error)
-      setData([])
+      // Fallback to direct query
+      try {
+        let query = supabase.from('expenses').select('*')
+        
+        if (currentGroup) {
+          query = query.eq('group_id', currentGroup.id)
+        } else {
+          query = query.eq('user_id', user?.id).is('group_id', null)
+        }
+        
+        const { data, error } = await query.order('date', { ascending: false })
+        
+        if (error) {
+          console.error('Error fetching expenses:', error)
+          setData([])
+        } else {
+          setData(data || [])
+          await fetchUserProfiles(data || [])
+        }
+      } catch (fallbackError) {
+        console.error('Fallback error:', fallbackError)
+        setData([])
+      }
     }
     setLoading(false)
   }
@@ -260,7 +290,7 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
                     </td>
                     <td className="p-2">{expense.remarks}</td>
                     <td className="p-2">
-                      {(() => {
+                      {expense.added_by_name || (() => {
                         const userId = expense.user_id
                         if (userId && userProfiles[userId]) {
                           const profile = userProfiles[userId]
