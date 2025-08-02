@@ -144,9 +144,8 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
           setData([])
         } else {
           setData(data || [])
-          if (data && data.length > 0) {
-            await fetchUserProfiles(data)
-          }
+          // Always fetch user profiles for proper name display
+          await fetchUserProfiles(data || [])
         }
       } catch (fallbackError) {
         console.error('Fallback error:', fallbackError)
@@ -295,7 +294,14 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
                     </td>
                     <td className="p-2">{expense.remarks}</td>
                     <td className="p-2">
-                      {expense.user_name || expense.added_by || 'Unknown User'}
+                      {(() => {
+                        const userId = expense.user_id
+                        if (userId && userProfiles[userId]) {
+                          const profile = userProfiles[userId]
+                          return profile.full_name || profile.email?.split('@')[0] || 'Unknown User'
+                        }
+                        return expense.added_by || expense.user_name || 'Unknown User'
+                      })()}
                     </td>
                     <td className="p-2">
                       <button onClick={() => handleEdit(expense)} className="text-blue-600 mr-2">✏️</button>

@@ -65,7 +65,7 @@ function App() {
           paid_by: expense.paid_by || null,
           date: new Date().toISOString().split('T')[0],
           user_id: user?.id,
-          added_by: displayName
+          added_by: displayName  // Always use the actual user who added it
         }
         
         if (currentGroup) {

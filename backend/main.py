@@ -9,12 +9,21 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from nlp_parser import parser
-# from expenses_api import router as expenses_router
+try:
+    from expenses_api import router as expenses_router
+    expenses_api_available = True
+except ImportError as e:
+    print(f"WARNING: expenses_api not available: {e}")
+    expenses_api_available = False
 
 load_dotenv()
 
 app = FastAPI()
-# app.include_router(expenses_router, prefix="/api")
+if expenses_api_available:
+    app.include_router(expenses_router, prefix="/api")
+    print("SUCCESS: expenses_api router loaded")
+else:
+    print("WARNING: expenses_api router not loaded")
 
 # WebSocket connection manager
 class ConnectionManager:

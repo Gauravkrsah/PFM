@@ -50,21 +50,41 @@ class ExpenseParser:
             }
         
         # Pattern 2: "item person amount" like "rent sonu 20000" or "tea gaurav 100"
+        # But exclude common food-related words that aren't names
+        food_words = ['lunch', 'dinner', 'breakfast', 'snack', 'meal', 'tea', 'coffee', 'food']
         pattern1 = r'^([a-zA-Z\s]+?)\s+([a-zA-Z]+)\s+(\d+)$'
         match1 = re.match(pattern1, text)
         if match1:
-            item, person, amount = match1.groups()
-            item = self._clean_item_name(item)
+            item, potential_person, amount = match1.groups()
+            # Don't treat food-related words as person names
+            if potential_person.lower() not in food_words:
+                item = self._clean_item_name(item)
+                category = self._categorize(item)
+                return {
+                    'amount': int(amount),
+                    'item': item.lower(),
+                    'category': category,
+                    'remarks': f"{item.title()} - Paid by {potential_person.title()}",
+                    'paid_by': potential_person.title()
+                }
+        
+        # Pattern 3: "item for/on context amount" like "samosa for lunch 80"
+        pattern2a = r'^([a-zA-Z\s]+?)\s+(?:for|on)\s+([a-zA-Z\s]+?)\s+(\d+)$'
+        match2a = re.match(pattern2a, text)
+        if match2a:
+            item, context, amount = match2a.groups()
+            full_item = f"{item} for {context}"
+            item = self._clean_item_name(full_item)
             category = self._categorize(item)
             return {
                 'amount': int(amount),
                 'item': item.lower(),
                 'category': category,
-                'remarks': f"{item.title()} - Paid by {person.title()}",
-                'paid_by': person.title()
+                'remarks': item.title(),
+                'paid_by': None
             }
         
-        # Pattern 3: "amount for/on item" like "500 for petrol" or "100 on tea"
+        # Pattern 3b: "amount for/on item" like "500 for petrol" or "100 on tea"
         pattern2 = r'^(\d+)\s+(?:for|on)\s+(?:the\s+)?(.+)$'
         match2 = re.match(pattern2, text)
         if match2:
@@ -75,7 +95,8 @@ class ExpenseParser:
                 'amount': int(amount),
                 'item': item.lower(),
                 'category': category,
-                'remarks': item.title()
+                'remarks': item.title(),
+                'paid_by': None
             }
         
         # Pattern 4: "spend amount on item" like "spend 100 on tea"
