@@ -97,24 +97,27 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
   const fetchExpenses = async () => {
     setLoading(true)
     try {
-      // Use backend API to get expenses with user names
-      const backendUrl = process.env.NODE_ENV === 'production' ? 'https://pfm-production.up.railway.app' : 'http://localhost:8000'
-      const response = await fetch(`${backendUrl}/api/expenses`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: user?.id,
-          group_id: currentGroup?.id || null
-        })
-      })
+      let query = supabase.from('expenses').select('*')
       
-      const result = await response.json()
+      if (currentGroup) {
+        // GROUP MODE: Only fetch group expenses
+        query = query.eq('group_id', currentGroup.id)
+      } else {
+        // PERSONAL MODE: Only fetch personal expenses (no group_id)
+        query = query.eq('user_id', user?.id).is('group_id', null)
+      }
       
-      if (result.error) {
-        console.error('Backend error:', result.error)
+      const { data, error } = await query.order('date', { ascending: false })
+      
+      if (error) {
+        console.error('Error fetching expenses:', error)
         setData([])
       } else {
-        setData(result.expenses || [])
+        setData(data || [])
+        // Fetch user profiles for all users who added expenses
+        if (data && data.length > 0) {
+          await fetchUserProfiles(data)
+        }
       }
     } catch (error) {
       console.error('Error fetching expenses:', error)
