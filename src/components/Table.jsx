@@ -97,27 +97,23 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
   const fetchExpenses = async () => {
     setLoading(true)
     try {
-      let query = supabase.from('expenses').select('*')
+      // Use backend API to get expenses with user names
+      const response = await fetch('/api/expenses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: user?.id,
+          group_id: currentGroup?.id || null
+        })
+      })
       
-      if (currentGroup) {
-        // GROUP MODE: Only fetch group expenses
-        query = query.eq('group_id', currentGroup.id)
-      } else {
-        // PERSONAL MODE: Only fetch personal expenses (no group_id)
-        query = query.eq('user_id', user?.id).is('group_id', null)
-      }
+      const result = await response.json()
       
-      const { data, error } = await query.order('date', { ascending: false })
-      
-      if (error) {
-        console.error('Error fetching expenses:', error)
+      if (result.error) {
+        console.error('Backend error:', result.error)
         setData([])
       } else {
-        setData(data || [])
-        // Fetch user profiles for all users who added expenses
-        if (data && data.length > 0) {
-          await fetchUserProfiles(data)
-        }
+        setData(result.expenses || [])
       }
     } catch (error) {
       console.error('Error fetching expenses:', error)
@@ -265,29 +261,7 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
                     </td>
                     <td className="p-2">{expense.remarks}</td>
                     <td className="p-2">
-                      {(() => {
-                        // First try the added_by field if it exists
-                        if (expense.added_by) {
-                          return expense.added_by
-                        }
-                        
-                        if (expense.user_id === user?.id) {
-                          // Current user added this expense
-                          return user?.user_metadata?.name || user?.email?.split('@')[0] || 'You'
-                        } else if (expense.user_id && userProfiles[expense.user_id]) {
-                          // Use fetched user profile
-                          const profile = userProfiles[expense.user_id]
-                          return profile.full_name || profile.email?.split('@')[0] || 'User'
-                        } else if (currentGroup && groupMembers.length > 0) {
-                          // Find the group member who added this expense
-                          const member = groupMembers.find(m => m.user_id === expense.user_id)
-                          if (member?.users) {
-                            return member.users.full_name || member.users.email?.split('@')[0] || 'Group Member'
-                          }
-                        }
-                        // Fallback for unknown users
-                        return 'Unknown User'
-                      })()}
+                      {expense.user_name || expense.added_by || 'Unknown User'}
                     </td>
                     <td className="p-2">
                       <button onClick={() => handleEdit(expense)} className="text-blue-600 mr-2">✏️</button>
