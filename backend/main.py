@@ -261,6 +261,42 @@ class ExpenseAnalyzer:
 # Initialize analyzer
 expense_analyzer = ExpenseAnalyzer()
 
+def parse_multi_expenses(text):
+    """Parse multiple expenses from comma-separated format"""
+    try:
+        # Pattern: "Item, Rs.Amount, Category Item2, Rs.Amount2, Category2"
+        pattern = r'([^,]+?)(?:,\s*)?Rs\.?(\d+)(?:,\s*)?([^,]*?)(?=\s+[^,]+?(?:,\s*)?Rs\.?\d+|$)'
+        matches = re.findall(pattern, text, re.IGNORECASE)
+        
+        if not matches:
+            return None
+            
+        expenses = []
+        categories = {'chicken': 'Food', 'dahi': 'Groceries', 'ghee': 'Groceries', 'momo': 'Food', 'lassi': 'Food'}
+        
+        for item, amount, category in matches:
+            item = item.strip()
+            category = category.strip() if category.strip() else None
+            
+            # Auto-categorize if no category given
+            if not category:
+                item_lower = item.lower()
+                category = next((cat for key, cat in categories.items() if key in item_lower), 'Other')
+            
+            expenses.append({
+                'amount': int(amount),
+                'item': item.lower(),
+                'category': category,
+                'remarks': item.title(),
+                'paid_by': None
+            })
+        
+        return expenses if expenses else None
+        
+    except Exception as e:
+        print(f"[MULTI_PARSE] Error: {e}")
+        return None
+
 async def ai_enhanced_parse(text):
     """Use AI to intelligently parse expense text"""
     try:
@@ -344,12 +380,25 @@ async def parse_expense(request: ParseRequest):
         # Try AI-enhanced parsing first if Gemini is available
         if gemini_available:
             print(f"[PARSE] Trying AI parsing for: {request.text}")
-            ai_result = await ai_enhanced_parse(request.text)
-            if ai_result and ai_result.get('expenses'):
-                print(f"[PARSE] AI successfully parsed {len(ai_result['expenses'])} expenses")
-                return ai_result
-            else:
-                print("[PARSE] AI parsing failed, falling back to rule-based")
+            try:
+                ai_result = await ai_enhanced_parse(request.text)
+                if ai_result and ai_result.get('expenses'):
+                    print(f"[PARSE] AI successfully parsed {len(ai_result['expenses'])} expenses")
+                    return ai_result
+                else:
+                    print("[PARSE] AI parsing failed, falling back")
+            except Exception as e:
+                print(f"[PARSE] AI parsing error: {e}")
+        
+        # Try smart multi-expense parsing before basic rule-based
+        multi_expenses = parse_multi_expenses(request.text)
+        if multi_expenses:
+            print(f"[PARSE] Multi-expense parsed {len(multi_expenses)} expenses")
+            reply_parts = [f"Rs.{exp['amount']} -> {exp['category']} ({exp['item'].title()})" for exp in multi_expenses]
+            return {
+                "expenses": multi_expenses,
+                "reply": f"SUCCESS: Added {len(multi_expenses)} expenses: " + ", ".join(reply_parts)
+            }
         
         # Fallback to rule-based parser
         expenses, reply = parser.parse(request.text)
