@@ -481,7 +481,7 @@ def get_expenses_with_names(request: GetExpensesRequest):
         else:
             query = query.eq('user_id', request.user_id).is_('group_id', None)
         
-        expenses_result = query.order('date', desc=True).execute()
+        expenses_result = query.order('date', ascending=False).execute()
         expenses = expenses_result.data or []
         
         if not expenses:
