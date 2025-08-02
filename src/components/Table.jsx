@@ -7,6 +7,37 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
   const [editForm, setEditForm] = useState({})
   const [loading, setLoading] = useState(false)
   const [groupMembers, setGroupMembers] = useState([])
+  const [userProfiles, setUserProfiles] = useState({})
+
+  const fetchUserProfiles = async (expenses) => {
+    try {
+      // Get unique user_ids from expenses
+      const userIds = [...new Set(expenses.map(exp => exp.user_id).filter(Boolean))]
+      
+      if (userIds.length === 0) return
+
+      // Fetch user profiles
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', userIds)
+
+      if (error) {
+        console.error('Error fetching user profiles:', error)
+        return
+      }
+
+      // Create profiles map
+      const profilesMap = {}
+      profiles?.forEach(profile => {
+        profilesMap[profile.id] = profile
+      })
+      
+      setUserProfiles(profilesMap)
+    } catch (error) {
+      console.error('Error fetching user profiles:', error)
+    }
+  }
 
   const fetchGroupMembers = async () => {
     if (!currentGroup) {
@@ -83,6 +114,10 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
         setData([])
       } else {
         setData(data || [])
+        // Fetch user profiles for all users who added expenses
+        if (data && data.length > 0) {
+          await fetchUserProfiles(data)
+        }
       }
     } catch (error) {
       console.error('Error fetching expenses:', error)
@@ -239,6 +274,10 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
                         if (expense.user_id === user?.id) {
                           // Current user added this expense
                           return user?.user_metadata?.name || user?.email?.split('@')[0] || 'You'
+                        } else if (expense.user_id && userProfiles[expense.user_id]) {
+                          // Use fetched user profile
+                          const profile = userProfiles[expense.user_id]
+                          return profile.full_name || profile.email?.split('@')[0] || 'User'
                         } else if (currentGroup && groupMembers.length > 0) {
                           // Find the group member who added this expense
                           const member = groupMembers.find(m => m.user_id === expense.user_id)
