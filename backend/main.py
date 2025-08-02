@@ -264,6 +264,7 @@ expense_analyzer = ExpenseAnalyzer()
 def parse_multi_expenses(text):
     """Parse multiple expenses from comma-separated format"""
     try:
+        print(f"[MULTI_PARSE] Input text: {text}")
         # Split by commas and process in groups of 3: Item, Rs.Amount, Category
         parts = [p.strip() for p in text.split(',')]
         expenses = []
@@ -311,6 +312,7 @@ def parse_multi_expenses(text):
             
             i = amount_part + 2
         
+        print(f"[MULTI_PARSE] Parsed {len(expenses)} expenses: {expenses}")
         return expenses if expenses else None
         
     except Exception as e:
@@ -411,6 +413,7 @@ async def parse_expense(request: ParseRequest):
                 print(f"[PARSE] AI parsing error: {e}")
         
         # Try smart multi-expense parsing before basic rule-based
+        print(f"[PARSE] Trying multi-expense parsing...")
         multi_expenses = parse_multi_expenses(request.text)
         if multi_expenses:
             print(f"[PARSE] Multi-expense parsed {len(multi_expenses)} expenses")
@@ -419,6 +422,8 @@ async def parse_expense(request: ParseRequest):
                 "expenses": multi_expenses,
                 "reply": f"SUCCESS: Added {len(multi_expenses)} expenses: " + ", ".join(reply_parts)
             }
+        else:
+            print(f"[PARSE] Multi-expense parsing returned None")
         
         # Fallback to rule-based parser
         expenses, reply = parser.parse(request.text)
