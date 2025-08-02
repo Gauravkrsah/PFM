@@ -461,7 +461,7 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold ${
                       isAdmin ? 'bg-yellow-500' : 'bg-blue-500'
                     }`}>
-                      {(member.users?.name || member.users?.email || 'U').charAt(0).toUpperCase()}
+                      {(member.users?.full_name || member.users?.email || 'U').charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2">
@@ -499,7 +499,7 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
           {/* Group Info */}
           <div className="mt-4 pt-3 border-t border-blue-200">
             <div className="flex flex-wrap gap-4 text-xs text-blue-600">
-              <span>👑 Admin: {groupMembers.find(m => m.user_id === currentGroup.created_by)?.users?.name || 'Unknown'}</span>
+              <span>👑 Admin: {groupMembers.find(m => m.user_id === currentGroup.created_by)?.users?.full_name || groupMembers.find(m => m.user_id === currentGroup.created_by)?.users?.email?.split('@')[0] || 'Unknown'}</span>
               <span>📅 Created: {new Date(currentGroup.created_at).toLocaleDateString()}</span>
               <span>👥 Total Members: {groupMembers.length}</span>
             </div>

@@ -48,7 +48,8 @@ function App() {
           remarks: expense.remarks || '',
           paid_by: expense.paid_by || null,
           date: new Date().toISOString().split('T')[0],
-          user_id: user?.id
+          user_id: user?.id,
+          added_by: user?.user_metadata?.name || user?.email?.split('@')[0] || 'Unknown'
         }
         
         if (currentGroup) {

@@ -13,7 +13,7 @@ const getApiBaseUrl = () => {
   if (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) {
     return window.APP_CONFIG.API_BASE_URL
   }
-  return 'http://localhost:8000' // fallback for development
+  return 'https://pfm-production.up.railway.app' // Use Railway for both web and mobile
 }
 
 export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGroup, isVisible = true }) {

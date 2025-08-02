@@ -35,10 +35,10 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
       // Extract user_ids
       const userIds = membersData.map(m => m.user_id)
 
-      // Fetch user details for these user_ids
+      // Fetch user details for these user_ids from profiles table
       const { data: usersData, error: usersError } = await supabase
-        .from('users')
-        .select('id, name, email')
+        .from('profiles')
+        .select('id, full_name, email')
         .in('id', userIds)
 
       if (usersError) {
@@ -231,6 +231,11 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
                     <td className="p-2">{expense.remarks}</td>
                     <td className="p-2">
                       {(() => {
+                        // First try the added_by field if it exists
+                        if (expense.added_by) {
+                          return expense.added_by
+                        }
+                        
                         if (expense.user_id === user?.id) {
                           // Current user added this expense
                           return user?.user_metadata?.name || user?.email?.split('@')[0] || 'You'
@@ -242,7 +247,7 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
                           }
                         }
                         // Fallback for unknown users
-                        return expense.paid_by || expense.user_name || expense.user_email?.split('@')[0] || 'Unknown User'
+                        return 'Unknown User'
                       })()}
                     </td>
                     <td className="p-2">
