@@ -9,5 +9,6 @@ if (supabaseUrl === 'https://placeholder.supabase.co') {
 
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
-// Cache bust: 2025-08-02-23:20
-console.log('🔄 Supabase client initialized - v1.0.1')
+// Cache bust: 2025-08-02-23:25 - FORCE RELOAD
+console.log('🔄 Supabase client initialized - v1.0.2 - CACHE BUSTED')
+window.PFM_VERSION = '1.0.2'
