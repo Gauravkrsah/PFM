@@ -46,8 +46,15 @@ class ExpenseAnalyzer:
         # Calculate average per day (assuming data spans multiple days)
         dates = set()
         for exp in expenses_data:
-            if exp.get('date'):
-                dates.add(exp['date'])
+            date_val = exp.get('date') or exp.get('created_at')
+            if date_val:
+                # Handle different date formats
+                if isinstance(date_val, str):
+                    # Extract date part if it's a datetime string
+                    date_part = date_val.split('T')[0] if 'T' in date_val else date_val.split(' ')[0]
+                    dates.add(date_part)
+                else:
+                    dates.add(str(date_val))
 
         days_count = len(dates) if dates else 1
         average_per_day = total / days_count if days_count > 0 else 0
@@ -62,9 +69,72 @@ class ExpenseAnalyzer:
             'days_tracked': days_count
         }
 
-    def process_query(self, query: str, analysis: Dict[str, Any], context: str = "personal") -> str:
+    def find_specific_item(self, query: str, expenses_data: List[Dict]) -> Dict[str, Any]:
+        """Find specific item expenses from the data"""
+        query_lower = query.lower()
+        
+        # Extract potential item names from query
+        item_keywords = []
+        words = query_lower.split()
+        
+        # Look for "on [item]" or "for [item]" patterns
+        for i, word in enumerate(words):
+            if word in ['on', 'for', 'spend', 'spent'] and i + 1 < len(words):
+                item_keywords.append(words[i + 1])
+        
+        # Also check for direct item mentions
+        common_items = ['momo', 'biryani', 'tea', 'coffee', 'lunch', 'dinner', 'grocery', 'petrol', 'taxi', 'rent', 'chicken', 'lassi', 'dahi', 'ghee', 'chiya']
+        for item in common_items:
+            if item in query_lower:
+                item_keywords.append(item)
+        
+        if not item_keywords:
+            return None
+            
+        # Find matching expenses
+        matching_expenses = []
+        total_amount = 0
+        
+        for expense in expenses_data:
+            item_name = expense.get('item', '').lower()
+            remarks = expense.get('remarks', '').lower()
+            
+            # Check if any keyword matches item or remarks
+            for keyword in item_keywords:
+                if keyword in item_name or keyword in remarks:
+                    matching_expenses.append(expense)
+                    total_amount += expense.get('amount', 0)
+                    break
+        
+        if matching_expenses:
+            return {
+                'item_name': item_keywords[0],
+                'total_amount': total_amount,
+                'count': len(matching_expenses),
+                'expenses': matching_expenses
+            }
+        
+        return None
+
+    def process_query(self, query: str, analysis: Dict[str, Any], context: str = "personal", expenses_data: List[Dict] = None) -> str:
         """Process natural language queries about expenses with advanced pattern matching"""
         query_lower = query.lower()
+        
+        # Specific item queries - check this FIRST
+        if expenses_data and any(word in query_lower for word in ['spend', 'spent', 'much', 'cost', 'price']):
+            item_result = self.find_specific_item(query_lower, expenses_data)
+            if item_result:
+                item_name = item_result['item_name'].title()
+                total = item_result['total_amount']
+                count = item_result['count']
+                
+                if count == 1:
+                    expense = item_result['expenses'][0]
+                    date_info = f" on {expense.get('date', 'unknown date')}" if expense.get('date') else ""
+                    paid_by = f" (paid by {expense.get('paid_by')})" if expense.get('paid_by') else ""
+                    return f"You spent Rs.{total} on {item_name}{date_info}{paid_by}."
+                else:
+                    return f"You spent Rs.{total} on {item_name} across {count} transactions."
 
         # Total/Summary queries
         if any(word in query_lower for word in ['total', 'spent', 'expense']) and any(word in query_lower for word in ['till now', 'so far', 'overall', 'all']):
@@ -143,6 +213,10 @@ class ExpenseAnalyzer:
         if any(word in query_lower for word in ['help', 'what can', 'options']):
             return f"You can ask me about:\n• Total expenses ('What are my expenses till now?')\n• Category breakdowns ('Show me my food expenses')\n• Recent transactions ('What are my recent expenses?')\n• Daily averages ('What's my daily spending?')\n• Comparisons ('What did I spend the most on?')\n• Who paid ('Who paid for grocery last time?')"
 
-        # Default comprehensive response
-        top_category = analysis['top_categories'][0][0].title() if analysis['top_categories'] else "various categories"
-        return f"Your {context} expenses: Rs.{analysis['total']} total across {analysis['count']} transactions. Top spending: {top_category}. Daily average: Rs.{analysis['average_per_day']}."
+        # Default comprehensive response with better analysis
+        if analysis['top_categories']:
+            top_category, top_amount = analysis['top_categories'][0]
+            percentage = (top_amount / analysis['total'] * 100) if analysis['total'] > 0 else 0
+            return f"Your {context} expenses: Rs.{analysis['total']} total across {analysis['count']} transactions. Top spending: {top_category.title()} (Rs.{top_amount}, {percentage:.1f}%). Daily average: Rs.{analysis['average_per_day']}."
+        else:
+            return f"Your {context} expenses: Rs.{analysis['total']} total across {analysis['count']} transactions. Daily average: Rs.{analysis['average_per_day']}."

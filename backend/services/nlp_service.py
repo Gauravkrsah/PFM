@@ -579,28 +579,45 @@ Return ONLY valid JSON:
                 if analysis['recent_expenses']:
                     recent_list = []
                     for exp in analysis['recent_expenses'][:5]:
+                        date_str = exp.get('date', 'recent')
                         paid_by = f" (paid by {exp.get('paid_by')})" if exp.get('paid_by') else ""
-                        recent_list.append(f"Rs.{exp.get('amount', 0)} on {exp.get('item', 'item')} - {exp.get('category', 'other')}{paid_by}")
+                        recent_list.append(f"{date_str}: Rs.{exp.get('amount', 0)} on {exp.get('item', 'item')} - {exp.get('category', 'other')}{paid_by}")
                     recent_expenses_text = "\n- Recent expenses: " + "; ".join(recent_list)
                 
+                # Create detailed expense list for specific item queries
+                detailed_expenses = ""
+                if table_data:
+                    expense_list = []
+                    for exp in table_data[:10]:  # Show top 10 expenses
+                        date_str = exp.get('date', 'unknown')
+                        item = exp.get('item', 'item')
+                        amount = exp.get('amount', 0)
+                        category = exp.get('category', 'other')
+                        paid_by = exp.get('paid_by', '')
+                        paid_info = f" (paid by {paid_by})" if paid_by else ""
+                        expense_list.append(f"- {date_str}: {item} - Rs.{amount} ({category}){paid_info}")
+                    detailed_expenses = "\n\nDetailed expenses:\n" + "\n".join(expense_list)
+
                 prompt = f"""
 You are a helpful financial assistant. Answer the user's question about their {context_type} expenses.
 
 User question: "{request.text}"
 
-Expense data:
+Expense summary:
 - Total spent: Rs.{context_data['total_amount']}
 - Number of transactions: {context_data['transaction_count']}
 - Top spending categories: {', '.join([f"{cat}: Rs.{amt}" for cat, amt in context_data['top_categories']])}
-- Average daily spending: Rs.{context_data['average_daily']}{recent_expenses_text}
+- Average daily spending: Rs.{context_data['average_daily']}{recent_expenses_text}{detailed_expenses}
 
 Instructions:
 1. Start your response with "Hi {user_name}!"
-2. Be conversational and helpful
-3. Use the provided data to answer accurately
-4. Keep responses concise but informative
-5. Use "Rs." for currency amounts
-6. For "who paid" questions, look at the recent expenses data
+2. For specific item queries (like "how much on momo"), search the detailed expenses and provide exact amounts
+3. Be conversational and helpful
+4. Use the provided data to answer accurately
+5. Keep responses concise but informative
+6. Use "Rs." for currency amounts
+7. For "who paid" questions, look at the expense data
+8. If asking about a specific item, mention the date and who paid if available
 """
                 
                 gemini_response = self.get_gemini_response(prompt)
@@ -610,7 +627,7 @@ Instructions:
                     return {"reply": gemini_response}
             
             # Fallback to rule-based processing
-            processed_response = analyzer.process_query(request.text, analysis, context_type)
+            processed_response = analyzer.process_query(request.text, analysis, context_type, table_data)
             final_response = f"Hi {user_name}! {processed_response}"
             return {"reply": final_response}
             

@@ -10,6 +10,7 @@ import Analytics from './components/Analytics'
 import EnhancedAnalytics from './components/EnhancedAnalytics'
 import { ToastProvider } from './components/Toast'
 import { supabase } from './supabase'
+import { initializeMobile, getMobileStyles, isMobile } from './mobile'
 
 function App() {
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('pfm_active_tab') || 'chat')
@@ -23,6 +24,12 @@ function App() {
   })
   const tableRef = useRef()
   const [toast, setToast] = useState(null)
+  const mobileStyles = getMobileStyles()
+  
+  // Initialize mobile app
+  useEffect(() => {
+    initializeMobile()
+  }, [])
   
   // Save active tab to localStorage
   useEffect(() => {
@@ -113,14 +120,16 @@ function App() {
     ]
 
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Header
-          user={user}
-          onLogout={() => setUser(null)}
-          onProfileUpdate={() => {}}
-        />
+      <div className={mobileStyles.container}>
+        <div className={mobileStyles.header}>
+          <Header
+            user={user}
+            onLogout={() => setUser(null)}
+            onProfileUpdate={() => {}}
+          />
+        </div>
         
-        <div className="max-w-6xl mx-auto px-4 py-6">
+        <div className={`max-w-6xl mx-auto ${mobileStyles.content}`}>
           <GroupManager
             user={user}
             currentGroup={currentGroup}
