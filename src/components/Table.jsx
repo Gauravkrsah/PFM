@@ -98,7 +98,8 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
     setLoading(true)
     try {
       // Use backend API to get expenses with user names
-      const response = await fetch('/api/expenses', {
+      const backendUrl = process.env.NODE_ENV === 'production' ? 'https://pfm-production.up.railway.app' : 'http://localhost:8000'
+      const response = await fetch(`${backendUrl}/api/expenses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
