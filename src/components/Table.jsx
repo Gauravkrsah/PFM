@@ -97,31 +97,61 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
   const fetchExpenses = async () => {
     setLoading(true)
     try {
-      let query = supabase.from('expenses').select('*')
+      // Use backend API to get expenses with user names
+      const apiBaseUrl = window.APP_CONFIG?.API_BASE_URL || 'https://pfm-production.up.railway.app'
       
-      if (currentGroup) {
-        // GROUP MODE: Only fetch group expenses
-        query = query.eq('group_id', currentGroup.id)
-      } else {
-        // PERSONAL MODE: Only fetch personal expenses (no group_id)
-        query = query.eq('user_id', user?.id).is('group_id', null)
+      const requestData = {
+        user_id: user?.id,
+        group_id: currentGroup?.id || null
       }
       
-      const { data, error } = await query.order('date', { ascending: false })
+      const response = await fetch(`${apiBaseUrl}/api/expenses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      })
       
-      if (error) {
-        console.error('Error fetching expenses:', error)
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
+      const result = await response.json()
+      
+      if (result.error) {
+        console.error('API error:', result.error)
         setData([])
       } else {
-        setData(data || [])
-        // Fetch user profiles for all users who added expenses
-        if (data && data.length > 0) {
-          await fetchUserProfiles(data)
-        }
+        setData(result.expenses || [])
       }
     } catch (error) {
       console.error('Error fetching expenses:', error)
-      setData([])
+      // Fallback to direct Supabase query
+      try {
+        let query = supabase.from('expenses').select('*')
+        
+        if (currentGroup) {
+          query = query.eq('group_id', currentGroup.id)
+        } else {
+          query = query.eq('user_id', user?.id).is('group_id', null)
+        }
+        
+        const { data, error } = await query.order('date', { ascending: false })
+        
+        if (error) {
+          console.error('Fallback query error:', error)
+          setData([])
+        } else {
+          setData(data || [])
+          if (data && data.length > 0) {
+            await fetchUserProfiles(data)
+          }
+        }
+      } catch (fallbackError) {
+        console.error('Fallback error:', fallbackError)
+        setData([])
+      }
     }
     setLoading(false)
   }

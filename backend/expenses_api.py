@@ -40,6 +40,9 @@ async def get_expenses_with_users(request: ExpensesRequest):
         # Get unique user IDs
         user_ids = list(set([exp['user_id'] for exp in expenses if exp.get('user_id')]))
         
+        if not user_ids:
+            return {"expenses": expenses}
+        
         # Fetch user profiles
         profiles_result = supabase.from('profiles').select('id, full_name, email').in_('id', user_ids).execute()
         profiles = {p['id']: p for p in (profiles_result.data or [])}
@@ -52,6 +55,10 @@ async def get_expenses_with_users(request: ExpensesRequest):
                 expense['user_name'] = profile.get('full_name') or profile.get('email', '').split('@')[0] or 'Unknown'
             else:
                 expense['user_name'] = expense.get('added_by') or 'Unknown'
+            
+            # Ensure added_by is also set for consistency
+            if not expense.get('added_by'):
+                expense['added_by'] = expense['user_name']
         
         return {"expenses": expenses}
         

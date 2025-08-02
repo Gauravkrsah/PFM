@@ -9,12 +9,12 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from nlp_parser import parser
-# from expenses_api import router as expenses_router
+from expenses_api import router as expenses_router
 
 load_dotenv()
 
 app = FastAPI()
-# app.include_router(expenses_router, prefix="/api")
+app.include_router(expenses_router, prefix="/api")
 
 # WebSocket connection manager
 class ConnectionManager:

@@ -40,6 +40,22 @@ function App() {
 
   const handleExpenseAdded = async (newExpenses) => {
     try {
+      // Get user's display name
+      const getUserDisplayName = () => {
+        if (user?.user_metadata?.name && user.user_metadata.name.trim()) {
+          return user.user_metadata.name.trim()
+        }
+        if (user?.email) {
+          const emailName = user.email.split('@')[0]
+          // Clean up email name and capitalize
+          const cleanName = emailName.replace(/[^a-zA-Z ]/g, ' ').replace(/\s+/g, ' ').trim()
+          return cleanName.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') || 'Unknown'
+        }
+        return 'Unknown'
+      }
+      
+      const displayName = getUserDisplayName()
+      
       for (const expense of newExpenses) {
         const expenseData = {
           amount: expense.amount || 0,
@@ -49,7 +65,7 @@ function App() {
           paid_by: expense.paid_by || null,
           date: new Date().toISOString().split('T')[0],
           user_id: user?.id,
-          added_by: user?.user_metadata?.name || user?.email?.split('@')[0] || 'Unknown'
+          added_by: displayName
         }
         
         if (currentGroup) {
