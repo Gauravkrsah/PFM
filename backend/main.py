@@ -400,7 +400,7 @@ async def parse_expense(request: ParseRequest):
         print(f"[PARSE] Received parse request: {request.text}")
         
         # Try AI-enhanced parsing first if Gemini is available
-        if gemini_available:
+        if False:  # Temporarily disable AI to test multi-expense parser
             print(f"[PARSE] Trying AI parsing for: {request.text}")
             try:
                 ai_result = await ai_enhanced_parse(request.text)
