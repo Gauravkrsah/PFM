@@ -264,32 +264,52 @@ expense_analyzer = ExpenseAnalyzer()
 def parse_multi_expenses(text):
     """Parse multiple expenses from comma-separated format"""
     try:
-        # Pattern: "Item, Rs.Amount, Category Item2, Rs.Amount2, Category2"
-        pattern = r'([^,]+?)(?:,\s*)?Rs\.?(\d+)(?:,\s*)?([^,]*?)(?=\s+[^,]+?(?:,\s*)?Rs\.?\d+|$)'
-        matches = re.findall(pattern, text, re.IGNORECASE)
-        
-        if not matches:
-            return None
-            
+        # Split by commas and process in groups of 3: Item, Rs.Amount, Category
+        parts = [p.strip() for p in text.split(',')]
         expenses = []
-        categories = {'chicken': 'Food', 'dahi': 'Groceries', 'ghee': 'Groceries', 'momo': 'Food', 'lassi': 'Food'}
         
-        for item, amount, category in matches:
-            item = item.strip()
-            category = category.strip() if category.strip() else None
+        i = 0
+        while i < len(parts):
+            # Look for Rs.Amount pattern
+            amount_part = None
+            amount = None
             
-            # Auto-categorize if no category given
+            # Check current and next parts for amount
+            for j in range(i, min(i + 3, len(parts))):
+                if re.search(r'Rs\.?(\d+)', parts[j], re.IGNORECASE):
+                    amount_match = re.search(r'Rs\.?(\d+)', parts[j], re.IGNORECASE)
+                    amount = int(amount_match.group(1))
+                    amount_part = j
+                    break
+            
+            if amount is None:
+                i += 1
+                continue
+                
+            # Get item (before amount)
+            item = parts[i] if i < amount_part else 'item'
+            
+            # Get category (after amount)
+            category = parts[amount_part + 1] if amount_part + 1 < len(parts) else 'Other'
+            
+            # Clean up
+            item = re.sub(r'Rs\.?\d+', '', item, flags=re.IGNORECASE).strip()
+            category = re.sub(r'Rs\.?\d+', '', category, flags=re.IGNORECASE).strip()
+            
+            if not item:
+                item = 'item'
             if not category:
-                item_lower = item.lower()
-                category = next((cat for key, cat in categories.items() if key in item_lower), 'Other')
-            
+                category = 'Other'
+                
             expenses.append({
-                'amount': int(amount),
+                'amount': amount,
                 'item': item.lower(),
-                'category': category,
+                'category': category.title(),
                 'remarks': item.title(),
                 'paid_by': None
             })
+            
+            i = amount_part + 2
         
         return expenses if expenses else None
         
