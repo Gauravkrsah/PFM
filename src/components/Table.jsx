@@ -11,10 +11,15 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
 
   const fetchUserProfiles = async (expenses) => {
     try {
+      console.log('🔍 Fetching user profiles for expenses:', expenses.length)
       // Get unique user_ids from expenses
       const userIds = [...new Set(expenses.map(exp => exp.user_id).filter(Boolean))]
+      console.log('👥 User IDs found:', userIds)
       
-      if (userIds.length === 0) return
+      if (userIds.length === 0) {
+        console.log('⚠️ No user IDs found')
+        return
+      }
 
       // Fetch user profiles
       const { data: profiles, error } = await supabase
@@ -23,19 +28,21 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
         .in('id', userIds)
 
       if (error) {
-        console.error('Error fetching user profiles:', error)
+        console.error('❌ Error fetching user profiles:', error)
         return
       }
 
+      console.log('✅ Profiles fetched:', profiles)
       // Create profiles map
       const profilesMap = {}
       profiles?.forEach(profile => {
         profilesMap[profile.id] = profile
       })
       
+      console.log('📋 Profiles map:', profilesMap)
       setUserProfiles(profilesMap)
     } catch (error) {
-      console.error('Error fetching user profiles:', error)
+      console.error('💥 Error fetching user profiles:', error)
     }
   }
 
