@@ -265,41 +265,41 @@ async def ai_enhanced_parse(text):
     """Use AI to intelligently parse expense text"""
     try:
         prompt = f"""
-You are an intelligent expense parser. Parse the following text into structured expense data.
+Parse this expense text into JSON. Handle ANY format - comma-separated, line breaks, mixed formats.
 
 Text: "{text}"
 
 Rules:
-1. Detect expenses, loans, and financial transactions
-2. Understand Nepali words: khana=food, chiya=tea, dudh=milk, tarkari=vegetables, etc.
-3. Categorize intelligently: Food, Transport, Groceries, Shopping, Utilities, Entertainment, Rent, Loan
-4. Extract amount, item, category, and who paid (if mentioned)
-5. Handle multiple expenses in one text
+- Extract ALL expenses from ANY format
+- Understand: Chicken=Food, Dahi=Groceries, Momo=Food, Lassi=Food, etc.
+- Handle: "Item, Rs.Amount, Category" OR "Item Amount" OR any mixed format
+- Categories: Food, Groceries, Transport, Shopping, Utilities, Entertainment, Rent, Loan
+- If category is given, use it. If not, auto-categorize intelligently.
 
-Return ONLY a JSON object with this exact structure:
+Return ONLY valid JSON:
 {{
   "expenses": [
-    {{
-      "amount": number,
-      "item": "string",
-      "category": "string",
-      "remarks": "string",
-      "paid_by": "string or null"
-    }}
+    {{"amount": 200, "item": "chicken", "category": "Food", "remarks": "Chicken", "paid_by": null}},
+    {{"amount": 600, "item": "dahi ghee", "category": "Groceries", "remarks": "Dahi & Ghee", "paid_by": null}}
   ],
-  "reply": "SUCCESS: Added Rs.X -> Category (Item)"
+  "reply": "SUCCESS: Added 2 expenses totaling Rs.800"
 }}
 
-Examples:
-- "khana 400" → {{"amount": 400, "item": "food", "category": "Food", "remarks": "Food", "paid_by": null}}
-- "gave ram 500 loan" → {{"amount": 500, "item": "loan", "category": "Loan", "remarks": "Loan given to Ram", "paid_by": "Ram"}}
+For input "Chicken, Rs.200, Grocery Dahi & Ghee, Rs.600, Grocery Momo, Rs.150, Food Lassi, Rs.160, Food":
+- Extract: Chicken Rs.200 (use given category Grocery), Dahi & Ghee Rs.600 (Grocery), Momo Rs.150 (Food), Lassi Rs.160 (Food)
 """
         
         response = get_gemini_response(prompt)
         if response:
-            # Try to extract JSON from response
             import json
             import re
+            
+            # Clean response and extract JSON
+            response = response.strip()
+            if response.startswith('```json'):
+                response = response[7:-3]
+            elif response.startswith('```'):
+                response = response[3:-3]
             
             # Find JSON in response
             json_match = re.search(r'\{.*\}', response, re.DOTALL)
@@ -307,8 +307,12 @@ Examples:
                 json_str = json_match.group(0)
                 parsed_data = json.loads(json_str)
                 
-                # Validate structure
-                if 'expenses' in parsed_data and 'reply' in parsed_data:
+                # Validate and fix structure
+                if 'expenses' in parsed_data:
+                    if 'reply' not in parsed_data:
+                        count = len(parsed_data['expenses'])
+                        total = sum(exp.get('amount', 0) for exp in parsed_data['expenses'])
+                        parsed_data['reply'] = f"SUCCESS: Added {count} expenses totaling Rs.{total}"
                     return parsed_data
         
         return None
@@ -339,10 +343,13 @@ async def parse_expense(request: ParseRequest):
         
         # Try AI-enhanced parsing first if Gemini is available
         if gemini_available:
+            print(f"[PARSE] Trying AI parsing for: {request.text}")
             ai_result = await ai_enhanced_parse(request.text)
-            if ai_result:
-                print(f"[PARSE] AI parsed {len(ai_result['expenses'])} expenses")
+            if ai_result and ai_result.get('expenses'):
+                print(f"[PARSE] AI successfully parsed {len(ai_result['expenses'])} expenses")
                 return ai_result
+            else:
+                print("[PARSE] AI parsing failed, falling back to rule-based")
         
         # Fallback to rule-based parser
         expenses, reply = parser.parse(request.text)
