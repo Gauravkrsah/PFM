@@ -21,7 +21,7 @@ class ExpenseAnalyzer:
             'december': 12, 'dec': 12
         }
         self.categories = {
-            'food': ['food', 'biryani', 'pizza', 'restaurant', 'hotel', 'meal', 'lunch', 'dinner', 'eat', 'cafe', 'snack', 'breakfast'],
+            'food': ['food', 'biryani', 'pizza', 'restaurant', 'hotel', 'meal', 'lunch', 'dinner', 'eat', 'cafe', 'snack', 'breakfast', 'tea', 'coffee', 'momo', 'chicken', 'lassi'],
             'groceries': ['grocery', 'groceries', 'vegetables', 'fruits', 'market', 'supermarket', 'store', 'milk', 'bread'],
             'transport': ['petrol', 'fuel', 'taxi', 'uber', 'bus', 'train', 'auto', 'rickshaw', 'metro', 'flight', 'travel'],
             'shopping': ['clothes', 'shoes', 'shopping', 'shirt', 'dress', 'bag', 'accessories'],
@@ -44,14 +44,16 @@ class ExpenseAnalyzer:
                 'average_per_day': 0
             }
 
-        total = sum(exp.get('amount', 0) for exp in expenses_data)
-        count = len(expenses_data)
+        total = sum(exp.get('amount', 0) for exp in expenses_data if exp.get('amount', 0) > 0)
+        count = len([exp for exp in expenses_data if exp.get('amount', 0) > 0])
 
-        # Category breakdown
+        # Category breakdown (only positive amounts - expenses)
         categories = {}
         for exp in expenses_data:
-            category = exp.get('category', 'Other').lower()
-            categories[category] = categories.get(category, 0) + exp.get('amount', 0)
+            amount = exp.get('amount', 0)
+            if amount > 0:  # Only count expenses, not income
+                category = exp.get('category', 'Other').lower()
+                categories[category] = categories.get(category, 0) + amount
 
         # Sort categories by amount
         top_categories = sorted(categories.items(), key=lambda x: x[1], reverse=True)[:5]
@@ -260,7 +262,37 @@ class ExpenseAnalyzer:
         else:
             time_context = ""
         
-        # Total/Summary queries - check FIRST before specific items
+        # Specific category queries - check FIRST (dynamic from actual data)
+        # First check actual categories from data
+        for actual_category in analysis['categories'].keys():
+            if actual_category in query_lower:
+                amount = analysis['categories'].get(actual_category, 0)
+                if amount > 0:
+                    cat_count = len([exp for exp in expenses_data if exp.get('category', '').lower() == actual_category and exp.get('amount', 0) > 0])
+                    if cat_count > 1:
+                        return f"You've spent Rs.{amount} on {actual_category} across {cat_count} transactions{time_context}."
+                    else:
+                        return f"You've spent Rs.{amount} on {actual_category}{time_context}."
+        
+        # Then check predefined category keywords
+        for category, keywords in self.categories.items():
+            if category in query_lower or any(keyword in query_lower for keyword in keywords):
+                amount = analysis['categories'].get(category.lower(), 0)
+                if amount > 0:
+                    cat_count = len([exp for exp in expenses_data if exp.get('category', '').lower() == category.lower() and exp.get('amount', 0) > 0])
+                    if cat_count > 1:
+                        return f"You've spent Rs.{amount} on {category} across {cat_count} transactions{time_context}."
+                    else:
+                        return f"You've spent Rs.{amount} on {category}{time_context}."
+                else:
+                    # Dynamic response based on actual spending data
+                    if analysis['total'] > 0:
+                        top_cat = analysis['top_categories'][0][0] if analysis['top_categories'] else 'other categories'
+                        return f"You haven't spent anything on {category}{time_context}. Your main spending has been on {top_cat} (Rs.{analysis['top_categories'][0][1] if analysis['top_categories'] else 0})."
+                    else:
+                        return f"You haven't spent anything on {category}{time_context}."
+        
+        # Total/Summary queries
         if any(word in query_lower for word in ['total', 'all', 'overall', 'everything', 'entire', 'whole']):
             if period_name:
                 return f"You spent Rs.{analysis['total']} in {period_name} across {analysis['count']} transactions."
@@ -269,7 +301,7 @@ class ExpenseAnalyzer:
             else:
                 return f"You spent Rs.{analysis['total']} across {analysis['count']} transactions{time_context}."
         
-        # Specific item queries - check AFTER total queries
+        # Specific item queries
         if expenses_data and any(word in query_lower for word in ['spend', 'spent', 'much', 'cost', 'price']):
             item_result = self.find_specific_item(query_lower, expenses_data)
             if item_result:
@@ -285,21 +317,12 @@ class ExpenseAnalyzer:
                 else:
                     return f"You spent Rs.{total} on {item_name} across {count} transactions{time_context}."
         
-        # General spending queries (fallback for "spent", "expense", "much" without total keywords)
+        # General spending queries
         if any(word in query_lower for word in ['spent', 'expense', 'much']):
             if period_name:
                 return f"You spent Rs.{analysis['total']} in {period_name} across {analysis['count']} transactions."
             else:
                 return f"You spent Rs.{analysis['total']} across {analysis['count']} transactions{time_context}."
-
-        # Specific category queries
-        for category in self.categories.keys():
-            if category in query_lower:
-                amount = analysis['categories'].get(category, 0)
-                if amount > 0:
-                    return f"You've spent Rs.{amount} on {category}{time_context}."
-                else:
-                    return f"You haven't spent anything on {category}{time_context}."
 
         # Breakdown/Category analysis
         if any(word in query_lower for word in ['category', 'breakdown', 'categories', 'where', 'what']):

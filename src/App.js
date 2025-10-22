@@ -21,21 +21,19 @@ function App() {
       return saved ? JSON.parse(saved) : null
     } catch { return null }
   })
+  const [showAddExpense, setShowAddExpense] = useState(false)
   const tableRef = useRef()
 
   const mobileStyles = getMobileStyles()
   
-  // Initialize mobile app
   useEffect(() => {
     initializeMobile()
   }, [])
   
-  // Save active tab to localStorage
   useEffect(() => {
     localStorage.setItem('pfm_active_tab', activeTab)
   }, [activeTab])
   
-  // Save current group to localStorage
   useEffect(() => {
     if (currentGroup) {
       localStorage.setItem('pfm_current_group', JSON.stringify(currentGroup))
@@ -100,73 +98,143 @@ function App() {
     }
   }
 
-  // Main App Component
   const MainApp = () => {
     if (!user) {
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-          <Auth onAuth={setUser} />
-        </div>
-      )
+      return <Auth onAuth={setUser} />
     }
 
-    const tabs = [
-      { id: 'chat', label: '💬', fullLabel: 'Chat', icon: '💬' },
-      { id: 'table', label: '📊', fullLabel: 'Table', icon: '📊' },
-      { id: 'analytics', label: '📈', fullLabel: 'Analytics', icon: '📈' }
+    const navItems = [
+      { id: 'chat', label: 'Chat', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
+      { id: 'expenses', label: 'Expenses', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+      { id: 'analytics', label: 'Analytics', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' }
     ]
 
     return (
-      <div className={mobileStyles.container}>
-        <div className={mobileStyles.header}>
-          <Header
-            user={user}
-            onLogout={() => setUser(null)}
-            onProfileUpdate={() => {}}
-          />
-        </div>
-        
-        <div className={`max-w-6xl mx-auto ${mobileStyles.content}`}>
-          <GroupManager
-            user={user}
-            currentGroup={currentGroup}
-            onGroupChange={setCurrentGroup}
-          />
+      <div className="min-h-screen bg-gray-50">
+        {/* Sidebar - Desktop */}
+        <aside className="sidebar">
+          <div className="p-4 border-b border-gray-200">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-black text-white flex items-center justify-center text-sm font-bold">P</div>
+              <span className="font-semibold text-sm">PFM</span>
+            </div>
+          </div>
           
-          {/* Mobile-first tab navigation */}
-          <div className="flex bg-white rounded-lg shadow-sm border mb-6 overflow-hidden">
-            {tabs.map(tab => (
+          <nav className="p-2">
+            {navItems.map(item => (
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 px-3 py-3 text-center transition-all duration-200 ${
-                  activeTab === tab.id
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-800'
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-colors ${
+                  activeTab === item.id ? 'bg-gray-100 text-black' : 'text-gray-600 hover:bg-gray-50'
                 }`}
               >
-                <div className="text-lg sm:hidden">{tab.icon}</div>
-                <div className="hidden sm:flex items-center justify-center space-x-2">
-                  <span className="text-lg">{tab.icon}</span>
-                  <span className="font-medium">{tab.fullLabel}</span>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={item.icon} />
+                </svg>
+                {item.label}
+              </button>
+            ))}
+          </nav>
+          
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
+            <Header user={user} onLogout={() => setUser(null)} onProfileUpdate={() => {}} currentGroup={currentGroup} compact />
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="lg:ml-56 h-screen flex flex-col">
+          <div className="lg:hidden flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 bg-black text-white flex items-center justify-center text-xs font-bold">P</div>
+                <span className="font-semibold text-sm">PFM</span>
+              </div>
+              <Header user={user} onLogout={() => setUser(null)} onProfileUpdate={() => {}} currentGroup={currentGroup} compact />
+            </div>
+          </div>
+
+          <div className="flex-1 flex flex-col overflow-hidden">
+            {activeTab === 'chat' && (
+              <div className="flex flex-col h-full">
+                <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 lg:px-8">
+                  <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
+                    <div className="flex-1">
+                      <GroupManager user={user} currentGroup={currentGroup} onGroupChange={setCurrentGroup} />
+                    </div>
+                    <button 
+                      onClick={() => {
+                        localStorage.removeItem('pfm_messages')
+                        window.location.reload()
+                      }}
+                      className="px-3 py-2 text-xs text-gray-500 hover:text-black hover:bg-gray-100 rounded-lg transition-colors font-medium flex-shrink-0"
+                    >
+                      Clear
+                    </button>
+                  </div>
                 </div>
+                <div className="flex-1 overflow-hidden">
+                  <Chat onExpenseAdded={handleExpenseAdded} onTableRefresh={handleTableRefresh} user={user} currentGroup={currentGroup} isVisible={true} />
+                </div>
+              </div>
+            )}
+            
+            {activeTab === 'expenses' && (
+              <div className="flex flex-col h-full">
+                <div className="flex-shrink-0 p-4 lg:p-6 lg:pt-6 max-w-7xl mx-auto w-full">
+                  <GroupManager user={user} currentGroup={currentGroup} onGroupChange={setCurrentGroup} />
+                </div>
+                <div className="flex-1 overflow-auto px-4 lg:px-6 pb-20 lg:pb-4 max-w-7xl mx-auto w-full">
+                  <Table ref={tableRef} expenses={expenses} currentGroup={currentGroup} user={user} />
+                </div>
+              </div>
+            )}
+            
+            {activeTab === 'analytics' && (
+              <div className="flex flex-col h-full">
+                <div className="flex-shrink-0 p-4 lg:p-6 lg:pt-6 max-w-7xl mx-auto w-full">
+                  <GroupManager user={user} currentGroup={currentGroup} onGroupChange={setCurrentGroup} />
+                </div>
+                <div className="flex-1 overflow-auto px-4 lg:px-6 pb-20 lg:pb-4 max-w-7xl mx-auto w-full">
+                  <EnhancedAnalytics currentGroup={currentGroup} user={user} />
+                </div>
+              </div>
+            )}
+          </div>
+        </main>
+
+
+
+        {/* Bottom Nav - Mobile */}
+        <nav className="bottom-nav safe-bottom">
+          <div className="flex h-14">
+            {navItems.map(item => (
+              <button key={item.id} onClick={() => setActiveTab(item.id)} className={`flex-1 flex flex-col items-center justify-center gap-1 transition-colors ${activeTab === item.id ? 'text-black' : 'text-gray-400'}`}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={activeTab === item.id ? 2 : 1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
+                </svg>
+                <span className="text-xs font-medium">{item.label}</span>
               </button>
             ))}
           </div>
-          
-          {/* Content area with better mobile spacing */}
-          <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-            <Chat 
-              onExpenseAdded={handleExpenseAdded} 
-              onTableRefresh={handleTableRefresh} 
-              user={user} 
-              currentGroup={currentGroup}
-              isVisible={activeTab === 'chat'}
-            />
-            {activeTab === 'table' && <Table ref={tableRef} expenses={expenses} currentGroup={currentGroup} user={user} />}
-            {activeTab === 'analytics' && <EnhancedAnalytics currentGroup={currentGroup} user={user} />}
+        </nav>
+
+        {/* Add Modal */}
+        {showAddExpense && (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-end lg:items-center justify-center" onClick={() => setShowAddExpense(false)}>
+            <div className="bg-white w-full lg:max-w-md lg:mx-4 p-4 lg:shadow-lg" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold">Add Expense</h3>
+                <button onClick={() => setShowAddExpense(false)} className="text-gray-400 hover:text-black">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <Chat onExpenseAdded={(e) => { handleExpenseAdded(e); setShowAddExpense(false); }} onTableRefresh={handleTableRefresh} user={user} currentGroup={currentGroup} isVisible={true} compact />
+            </div>
           </div>
-        </div>
+        )}
       </div>
     )
   }

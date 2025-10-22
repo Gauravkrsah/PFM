@@ -5,107 +5,57 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
   }
   
   body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: #f9fafb;
-  }
-  
-  * {
-    box-sizing: border-box;
+    background: #fafafa;
+    min-height: 100vh;
   }
 }
 
 @layer components {
-  /* Custom scrollbar */
-  .scrollbar-thin {
-    scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 #f1f5f9;
-  }
-  
   .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-  }
-  
-  .scrollbar-thin::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 3px;
+    width: 3px;
+    height: 3px;
   }
   
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
+    background: #e0e0e0;
+    border-radius: 2px;
   }
   
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+  .card {
+    @apply bg-white border border-gray-200 shadow-sm;
   }
   
-  /* Focus styles */
-  .focus-ring {
-    @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
-  }
-  
-  /* Button variants */
   .btn-primary {
-    @apply px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all font-medium;
+    @apply px-4 py-2 bg-black text-white text-sm font-medium hover:bg-gray-800 active:bg-gray-900 transition-colors;
   }
   
   .btn-secondary {
-    @apply px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all font-medium;
+    @apply px-4 py-2 bg-white border border-gray-300 text-sm font-medium hover:bg-gray-50 active:bg-gray-100 transition-colors;
   }
   
-  /* Card styles */
-  .card {
-    @apply bg-white rounded-lg shadow-sm border;
+  .input-field {
+    @apply w-full px-3 py-2 text-sm border border-gray-300 focus:border-black focus:outline-none transition-colors;
   }
   
-  .card-hover {
-    @apply card hover:shadow-md transition-shadow;
+  .sidebar {
+    @apply fixed left-0 top-0 h-full w-56 bg-white border-r border-gray-200 hidden lg:block;
+  }
+  
+  .bottom-nav {
+    @apply fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-sm lg:hidden;
   }
 }
 
 @layer utilities {
-  /* Safe area for mobile devices */
-  .safe-top {
-    padding-top: env(safe-area-inset-top);
-  }
-  
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom);
-  }
-  
-  /* Text utilities */
-  .text-balance {
-    text-wrap: balance;
-  }
-  
-  /* Animation utilities */
-  .animate-fade-in {
-    animation: fadeIn 0.3s ease-in-out;
-  }
-  
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  
-  /* Mobile-first responsive utilities */
-  .mobile-padding {
-    @apply px-4 sm:px-6 lg:px-8;
-  }
-  
-  .mobile-text {
-    @apply text-sm sm:text-base;
   }
 }

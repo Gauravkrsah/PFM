@@ -9,7 +9,7 @@ const mockExpenses = [
   { id: 4, amount: 200, category: 'food', item: 'Restaurant', date: '2024-01-12', paid_by: 'Sonu', remarks: 'Lunch out' }
 ]
 
-export default function EnhancedAnalytics({ currentGroup, user }) {
+export default function EnhancedAnalytics({ currentGroup, user, compact = false }) {
   const [analytics, setAnalytics] = useState({
     totalSpent: 0,
     totalIncome: 0,
@@ -269,12 +269,9 @@ export default function EnhancedAnalytics({ currentGroup, user }) {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className={compact ? '' : 'card p-4'}>
         <div className="flex justify-center items-center h-64">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading analytics...</p>
-          </div>
+          <div className="text-xs text-gray-500">Loading...</div>
         </div>
       </div>
     )
@@ -298,30 +295,15 @@ export default function EnhancedAnalytics({ currentGroup, user }) {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold">
-          📈 {currentGroup ? `${currentGroup.name} Group` : 'Personal'} Analytics
-        </h2>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={fetchAnalytics}
-            disabled={loading}
-            className="px-3 py-1 text-sm bg-blue-100 text-blue-600 rounded hover:bg-blue-200 disabled:opacity-50"
-          >
-            🔄 Refresh
-          </button>
-          <select
-            value={timeRange}
-            onChange={(e) => setTimeRange(e.target.value)}
-            className="px-3 py-1 border rounded"
-          >
-            <option value="7">Last 7 days</option>
-            <option value="30">Last 30 days</option>
-            <option value="90">Last 3 months</option>
-            <option value="365">Last year</option>
-          </select>
-        </div>
+    <div className={compact ? 'space-y-3' : 'card p-4'}>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="font-semibold">{compact ? 'Overview' : 'Analytics'}</h2>
+        <select value={timeRange} onChange={(e) => setTimeRange(e.target.value)} className="text-xs border border-gray-300 px-2 py-1 focus:border-black outline-none">
+          <option value="7">7d</option>
+          <option value="30">30d</option>
+          <option value="90">90d</option>
+          <option value="365">1y</option>
+        </select>
       </div>
       
       {analytics.usesMockData && (
@@ -335,33 +317,26 @@ export default function EnhancedAnalytics({ currentGroup, user }) {
         </div>
       )}
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-        <div className="bg-red-50 p-3 sm:p-4 rounded-lg border border-red-200">
-          <h3 className="font-medium text-red-800 mb-1 text-sm sm:text-base">💸 Total Expenses</h3>
-          <p className="text-xl sm:text-2xl font-bold text-red-600">Rs.{analytics.totalSpent.toLocaleString()}</p>
-          <p className="text-xs text-red-500">{analytics.expenseCount} transactions</p>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
+        <div className="bg-white border border-gray-200 p-3">
+          <div className="text-xs text-gray-500 mb-1">Expenses</div>
+          <div className="text-lg font-bold">Rs.{analytics.totalSpent.toLocaleString()}</div>
+          <div className="text-xs text-gray-400">{analytics.expenseCount} txn</div>
         </div>
-        
-        <div className="bg-green-50 p-3 sm:p-4 rounded-lg border border-green-200">
-          <h3 className="font-medium text-green-800 mb-1 text-sm sm:text-base">💰 Total Income</h3>
-          <p className="text-xl sm:text-2xl font-bold text-green-600">Rs.{analytics.totalIncome.toLocaleString()}</p>
-          <p className="text-xs text-green-500">{analytics.incomeCount} transactions</p>
+        <div className="bg-white border border-gray-200 p-3">
+          <div className="text-xs text-gray-500 mb-1">Income</div>
+          <div className="text-lg font-bold">Rs.{analytics.totalIncome.toLocaleString()}</div>
+          <div className="text-xs text-gray-400">{analytics.incomeCount} txn</div>
         </div>
-        
-        <div className="bg-blue-50 p-3 sm:p-4 rounded-lg border border-blue-200">
-          <h3 className="font-medium text-blue-800 mb-1 text-sm sm:text-base">📊 Net Balance</h3>
-          <p className={`text-xl sm:text-2xl font-bold ${analytics.netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            Rs.{Math.abs(analytics.netBalance).toLocaleString()}
-          </p>
-          <p className="text-xs text-blue-500">{analytics.netBalance >= 0 ? 'Surplus' : 'Deficit'}</p>
+        <div className="bg-white border border-gray-200 p-3">
+          <div className="text-xs text-gray-500 mb-1">Balance</div>
+          <div className="text-lg font-bold">Rs.{Math.abs(analytics.netBalance).toLocaleString()}</div>
+          <div className="text-xs text-gray-400">{analytics.netBalance >= 0 ? 'Surplus' : 'Deficit'}</div>
         </div>
-        
-        <div className="bg-purple-50 p-3 sm:p-4 rounded-lg border border-purple-200">
-          <h3 className="font-medium text-purple-800 mb-1 text-sm sm:text-base">🎯 Savings Rate</h3>
-          <p className="text-xl sm:text-2xl font-bold text-purple-600">
-            {analytics.totalIncome > 0 ? Math.round((analytics.netBalance / analytics.totalIncome) * 100) : 0}%
-          </p>
-          <p className="text-xs text-purple-500">Of total income</p>
+        <div className="bg-white border border-gray-200 p-3">
+          <div className="text-xs text-gray-500 mb-1">Savings</div>
+          <div className="text-lg font-bold">{analytics.totalIncome > 0 ? Math.round((analytics.netBalance / analytics.totalIncome) * 100) : 0}%</div>
+          <div className="text-xs text-gray-400">Rate</div>
         </div>
       </div>
       
@@ -459,8 +434,9 @@ export default function EnhancedAnalytics({ currentGroup, user }) {
         </div>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-        <div className="bg-white p-4 rounded-lg border">
+      {!compact && (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div className="card p-4">
           <h3 className="font-medium mb-4">💸 Expense Categories</h3>
           <div className="space-y-4">
             {Object.entries(analytics.expenseCategories)
@@ -500,7 +476,7 @@ export default function EnhancedAnalytics({ currentGroup, user }) {
         </div>
         
         {Object.keys(analytics.incomeCategories).length > 0 && (
-          <div className="bg-white p-4 rounded-lg border">
+          <div className="card p-4">
             <h3 className="font-medium mb-4">💰 Income Sources</h3>
             <div className="space-y-4">
               {Object.entries(analytics.incomeCategories)
@@ -535,7 +511,7 @@ export default function EnhancedAnalytics({ currentGroup, user }) {
         )}
         
         {currentGroup && Object.keys(analytics.userBreakdown).length > 1 && (
-          <div className="bg-white p-4 rounded-lg border">
+          <div className="card p-4">
             <h3 className="font-medium mb-4">👥 User Spending</h3>
             <div className="space-y-3">
               {Object.entries(analytics.userBreakdown)
@@ -559,7 +535,7 @@ export default function EnhancedAnalytics({ currentGroup, user }) {
         )}
         
         {analytics.weeklyTrend.length > 0 && (
-          <div className="bg-white p-4 rounded-lg border">
+          <div className="card p-4">
             <h3 className="font-medium mb-4">📅 Weekly Trend (Last 4 Weeks)</h3>
             <div className="flex items-end space-x-2 h-32">
               {analytics.weeklyTrend.map(({ week, amount }) => {
@@ -581,7 +557,7 @@ export default function EnhancedAnalytics({ currentGroup, user }) {
         )}
         
         {Object.keys(analytics.spendingPattern).length > 0 && (
-          <div className="bg-white p-4 rounded-lg border">
+          <div className="card p-4">
             <h3 className="font-medium mb-4">📆 Spending by Day of Week</h3>
             <div className="flex items-end space-x-1 h-32">
               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => {
@@ -604,7 +580,7 @@ export default function EnhancedAnalytics({ currentGroup, user }) {
         )}
         
         {analytics.monthlyTrend.length > 1 && (
-          <div className="bg-white p-4 rounded-lg border lg:col-span-2">
+          <div className="card p-4 lg:col-span-2">
             <h3 className="font-medium mb-4">📈 Monthly Trend</h3>
             <div className="flex items-end space-x-2 h-32">
               {analytics.monthlyTrend.map(({ month, amount }) => {
@@ -625,6 +601,7 @@ export default function EnhancedAnalytics({ currentGroup, user }) {
           </div>
         )}
       </div>
+      )}
     </div>
   )
 }

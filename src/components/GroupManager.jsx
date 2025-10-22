@@ -241,17 +241,17 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
   }
 
   return (
-    <div className="mb-6 p-4 bg-white border rounded-lg shadow-sm">
+    <>
       {invitations.length > 0 && (
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <h3 className="font-medium mb-3 text-blue-800">📧 Group Invitations</h3>
+        <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <h3 className="font-medium mb-2 text-sm text-blue-800">📧 Group Invitations</h3>
           <div className="space-y-2">
             {invitations.map(inv => (
-              <div key={inv.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2 bg-white rounded border">
+              <div key={inv.id} className="flex items-center justify-between gap-2 p-2 bg-white rounded border">
                 <span className="text-sm font-medium">Join "{inv.groups?.name || 'Unknown Group'}"</span>
                 <button
                   onClick={() => acceptInvitation(inv.id, inv.group_id)}
-                  className="px-3 py-1 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
                 >
                   Accept
                 </button>
@@ -261,7 +261,7 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
         </div>
       )}
       
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+      <div className="flex items-center gap-2 flex-wrap">
         <select
           value={currentGroup?.id || 'personal'}
           onChange={(e) => {
@@ -269,7 +269,7 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
             onGroupChange(group)
             setShowMembers(false)
           }}
-          className="flex-1 sm:flex-none px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent bg-white hover:border-gray-400 transition-colors"
         >
           <option value="personal">👤 Personal</option>
           {groups.map(group => (
@@ -279,58 +279,55 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
         
         <button
           onClick={() => setShowCreate(true)}
-          className="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+          className="px-3 py-2 text-xs bg-black text-white rounded-lg hover:bg-gray-800 transition-colors font-medium"
         >
-          + New Group
+          + New
         </button>
 
         {currentGroup && (
           <>
-            <form onSubmit={inviteUser} className="flex gap-2">
+            <button
+              onClick={() => setShowMembers(!showMembers)}
+              className="px-3 py-2 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+            >
+              👥 Members
+            </button>
+            
+            <form onSubmit={inviteUser} className="flex gap-1.5 ml-auto">
               <input
                 type="email"
-                placeholder="Invite by email"
+                placeholder="Invite email"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
-                className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-48"
+                className="px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent w-36"
               />
               <button
                 type="submit"
-                className="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                className="px-3 py-2 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
               >
                 Invite
               </button>
             </form>
             
-            <div className="flex gap-2">
+            <button
+              onClick={leaveGroup}
+              disabled={isProcessing}
+              className="px-3 py-2 text-xs bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+              title="Leave Group"
+            >
+              Leave
+            </button>
+            
+            {currentGroup.created_by === user.id && (
               <button
-                onClick={leaveGroup}
+                onClick={deleteGroup}
                 disabled={isProcessing}
-                className="px-3 py-2 text-sm bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-                title="Leave Group"
+                className="px-3 py-2 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                title="Delete Group"
               >
-                🚪 Leave
+                Delete
               </button>
-              
-              {currentGroup.created_by === user.id && (
-                <button
-                  onClick={deleteGroup}
-                  disabled={isProcessing}
-                  className="px-3 py-2 text-sm bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-                  title="Delete Group"
-                >
-                  🗑️ Delete
-                </button>
-              )}
-              
-              <button
-                onClick={() => setShowMembers(!showMembers)}
-                className="px-3 py-2 text-sm bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors font-medium"
-                title="View Group Members"
-              >
-                👥 Members
-              </button>
-            </div>
+            )}
           </>
         )}
       </div>
@@ -385,7 +382,7 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
       )}
 
       {currentGroup && showMembers && (
-        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg mb-3">
           <h4 className="font-semibold mb-3 text-blue-800 flex items-center justify-between">
             <span className="flex items-center">
               <span className="text-lg mr-2">👥</span>
@@ -470,6 +467,6 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
