@@ -1,15 +1,23 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import axios from 'axios'
 import { supabase } from '../supabase'
 
 const getApiBaseUrl = () => {
-  if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-    return 'https://pfm-production.up.railway.app'
+  const isNgrok = window.location.hostname.includes('ngrok')
+  
+  if (isNgrok && process.env.REACT_APP_BACKEND_NGROK_URL) {
+    return process.env.REACT_APP_BACKEND_NGROK_URL
   }
+  
   if (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) {
     return window.APP_CONFIG.API_BASE_URL
   }
-  return 'https://pfm-production.up.railway.app'
+  
+  if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+    return 'https://pfm-production.up.railway.app'
+  }
+  
+  return ''
 }
 
 export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGroup, isVisible = true, compact = false, onClearChat }) {
@@ -21,6 +29,15 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
     } catch { return [] }
   })
   const [expensesData, setExpensesData] = useState([])
+  const messagesEndRef = useRef(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages, loading])
 
   useEffect(() => {
     localStorage.setItem('pfm_messages', JSON.stringify(messages))
@@ -107,7 +124,7 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
 
   return (
     <div className="flex flex-col h-full" style={{ display: isVisible ? 'flex' : 'none' }}>
-      <div className="flex-1 overflow-y-auto px-4 lg:px-8 py-4 pb-20 lg:pb-4">
+      <div className="flex-1 overflow-y-auto px-4 lg:px-8 py-4 pb-48 lg:pb-32">
         <div className="max-w-4xl mx-auto space-y-3">
           {messages.length === 0 && (
             <div className="flex items-center justify-center min-h-[50vh] text-center text-gray-400">
@@ -130,23 +147,27 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
               <div className="bg-gray-100 px-4 py-2.5 rounded-2xl text-sm text-gray-500">...</div>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
       </div>
 
-      <div className="fixed bottom-14 lg:bottom-0 left-0 right-0 lg:left-56 border-t border-gray-200 bg-white px-4 lg:px-8 py-3 z-30">
-        <form onSubmit={handleSubmit} className="flex gap-2 max-w-4xl mx-auto">
-          <input 
-            value={input} 
-            onChange={(e) => setInput(e.target.value)} 
-            placeholder="Add expense or ask question..." 
-            className="flex-1 px-4 py-3 text-sm border border-gray-300 rounded-full focus:border-black focus:outline-none transition-colors" 
-            disabled={loading}
-            autoFocus
-          />
-          <button type="submit" disabled={loading || !input.trim()} className="w-10 h-10 bg-black text-white rounded-full hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center text-lg flex-shrink-0">
-            {loading ? '...' : '↑'}
-          </button>
-        </form>
+      <div className="fixed bottom-14 lg:bottom-0 left-0 right-0 lg:left-56 z-30">
+        <div className="absolute inset-x-0 bottom-full h-16 bg-gradient-to-t from-white to-transparent pointer-events-none" />
+        <div className="bg-white px-4 lg:px-8 py-4">
+          <form onSubmit={handleSubmit} className="flex gap-2 max-w-4xl mx-auto">
+            <input 
+              value={input} 
+              onChange={(e) => setInput(e.target.value)} 
+              placeholder="Add expense or ask question..." 
+              className="flex-1 px-5 py-3 text-sm border border-gray-300 rounded-full focus:border-black focus:outline-none focus:shadow-sm transition-all" 
+              disabled={loading}
+              autoFocus
+            />
+            <button type="submit" disabled={loading || !input.trim()} className="w-10 h-10 bg-black text-white rounded-full hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center text-lg flex-shrink-0">
+              {loading ? '...' : '↑'}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   )

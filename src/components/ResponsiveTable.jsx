@@ -99,7 +99,7 @@ const ResponsiveTable = forwardRef(({ expenses, onExpenseUpdate, currentGroup, u
         query = query.eq('user_id', user?.id).is('group_id', null)
       }
       
-      const { data, error } = await query.order('created_at', { ascending: false })
+      const { data, error } = await query.order('date', { ascending: false })
       
       if (error) {
         console.error('Error fetching expenses:', error)

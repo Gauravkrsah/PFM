@@ -60,32 +60,27 @@ export default function SimpleAnalytics({ currentGroup, user }) {
 
       const transactions = data || []
       
-      // Separate by category first, then by amount
+      // Separate transactions logically
       const incomeTransactions = transactions.filter(t => 
-        t.category && t.category.toLowerCase() === 'income'
+        t.amount < 0 && t.category && t.category.toLowerCase() === 'income'
       )
-      const loanTransactions = transactions.filter(t => 
-        t.category && t.category.toLowerCase() === 'loan'
+      const loanGivenTransactions = transactions.filter(t => 
+        t.amount > 0 && t.category && t.category.toLowerCase() === 'loan'
+      )
+      const loanReceivedTransactions = transactions.filter(t => 
+        t.amount < 0 && t.category && t.category.toLowerCase() === 'loan'
       )
       const expenseTransactions = transactions.filter(t => 
-        t.category && t.category.toLowerCase() !== 'income' && t.category.toLowerCase() !== 'loan'
+        t.amount > 0 && t.category && t.category.toLowerCase() !== 'loan'
       )
       
-      // Calculate totals
-      const totalExpenses = expenseTransactions.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0)
+      // Calculate totals accurately
+      const totalExpenses = expenseTransactions.reduce((sum, t) => sum + (t.amount || 0), 0)
       const totalIncome = incomeTransactions.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0)
-      const netBalance = totalIncome - totalExpenses
-      
-      // Loan calculations - separate lent (positive) vs received (negative)
-      const loanLent = loanTransactions
-        .filter(t => (t.amount || 0) > 0)
-        .reduce((sum, t) => sum + t.amount, 0)
-      
-      const loanReceived = loanTransactions
-        .filter(t => (t.amount || 0) < 0)
-        .reduce((sum, t) => sum + Math.abs(t.amount), 0)
-      
+      const loanLent = loanGivenTransactions.reduce((sum, t) => sum + (t.amount || 0), 0)
+      const loanReceived = loanReceivedTransactions.reduce((sum, t) => sum + Math.abs(t.amount || 0), 0)
       const netLoan = loanLent - loanReceived
+      const netBalance = totalIncome - totalExpenses
       
       // Calculate expense categories (only actual expenses)
       const expenseCategories = {}
@@ -183,144 +178,114 @@ export default function SimpleAnalytics({ currentGroup, user }) {
         </div>
       </div>
 
-      {/* Main Stats - Row 1 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <div className="bg-red-50 p-3 rounded-lg border border-red-200">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="text-sm font-medium text-red-800">💸 Total Expenses</h3>
-          </div>
-          <p className="text-lg font-bold text-red-600">Rs.{analytics.totalExpenses.toLocaleString()}</p>
-          <p className="text-xs text-red-500">{analytics.expenseCount} transactions</p>
+      {/* Main Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <h3 className="text-sm font-medium text-gray-600 mb-2">💸 Expenses</h3>
+          <p className="text-2xl font-bold text-black mb-1">Rs.{analytics.totalExpenses.toLocaleString()}</p>
+          <p className="text-xs text-gray-500">{analytics.expenseCount} transactions</p>
         </div>
         
-        <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="text-sm font-medium text-green-800">💰 Total Income</h3>
-          </div>
-          <p className="text-lg font-bold text-green-600">Rs.{analytics.totalIncome.toLocaleString()}</p>
-          <p className="text-xs text-green-500">{analytics.incomeCount} transactions</p>
+        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <h3 className="text-sm font-medium text-gray-600 mb-2">💰 Income</h3>
+          <p className="text-2xl font-bold text-black mb-1">Rs.{analytics.totalIncome.toLocaleString()}</p>
+          <p className="text-xs text-gray-500">{analytics.incomeCount} transactions</p>
         </div>
         
-        <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="text-sm font-medium text-blue-800">📊 Net Balance</h3>
-          </div>
-          <p className={`text-lg font-bold ${analytics.netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <h3 className="text-sm font-medium text-gray-600 mb-2">📊 Net Balance</h3>
+          <p className="text-2xl font-bold text-black mb-1">
             Rs.{Math.abs(analytics.netBalance).toLocaleString()}
           </p>
-          <p className="text-xs text-blue-500">{analytics.netBalance >= 0 ? 'Surplus' : 'Deficit'}</p>
+          <p className="text-xs text-gray-500">{analytics.netBalance >= 0 ? 'Surplus' : 'Deficit'}</p>
         </div>
         
-        <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="text-sm font-medium text-purple-800">🎯 Savings Rate</h3>
-          </div>
-          <p className="text-lg font-bold text-purple-600">{analytics.savingsRate}%</p>
-          <p className="text-xs text-purple-500">Of total income</p>
+        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <h3 className="text-sm font-medium text-gray-600 mb-2">🎯 Savings Rate</h3>
+          <p className="text-2xl font-bold text-black mb-1">{analytics.savingsRate}%</p>
+          <p className="text-xs text-gray-500">Of total income</p>
         </div>
       </div>
 
-      {/* Loan Stats - Row 2 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="text-sm font-medium text-yellow-800">🤝 Loan Lent</h3>
-          </div>
-          <p className="text-lg font-bold text-yellow-600">Rs.{analytics.loanLent.toLocaleString()}</p>
-          <p className="text-xs text-yellow-500">Money given out</p>
+      {/* Loan & Additional Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <h3 className="text-sm font-medium text-gray-600 mb-2">🤝 Loans Given</h3>
+          <p className="text-2xl font-bold text-black mb-1">Rs.{analytics.loanLent.toLocaleString()}</p>
+          <p className="text-xs text-gray-500">Money lent out</p>
         </div>
         
-        <div className="bg-teal-50 p-3 rounded-lg border border-teal-200">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="text-sm font-medium text-teal-800">🔄 Loan Received</h3>
-          </div>
-          <p className="text-lg font-bold text-teal-600">Rs.{analytics.loanReceived.toLocaleString()}</p>
-          <p className="text-xs text-teal-500">Money got back</p>
+        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <h3 className="text-sm font-medium text-gray-600 mb-2">🔄 Loans Received</h3>
+          <p className="text-2xl font-bold text-black mb-1">Rs.{analytics.loanReceived.toLocaleString()}</p>
+          <p className="text-xs text-gray-500">Money received back</p>
         </div>
         
-        <div className="bg-indigo-50 p-3 rounded-lg border border-indigo-200">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="text-sm font-medium text-indigo-800">📊 Net Loan</h3>
-          </div>
-          <p className={`text-lg font-bold ${analytics.netLoan >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <h3 className="text-sm font-medium text-gray-600 mb-2">📊 Net Loan</h3>
+          <p className="text-2xl font-bold text-black mb-1">
             Rs.{Math.abs(analytics.netLoan).toLocaleString()}
           </p>
-          <p className="text-xs text-indigo-500">{analytics.netLoan >= 0 ? 'Owed to you' : 'You owe'}</p>
+          <p className="text-xs text-gray-500">{analytics.netLoan >= 0 ? 'Owed to you' : 'You owe'}</p>
         </div>
         
-        <div className="bg-pink-50 p-3 rounded-lg border border-pink-200">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="text-sm font-medium text-pink-800">📈 Daily Avg</h3>
-          </div>
-          <p className="text-lg font-bold text-pink-600">Rs.{analytics.dailyAverage.toLocaleString()}</p>
-          <p className="text-xs text-pink-500">Spending per day</p>
+        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <h3 className="text-sm font-medium text-gray-600 mb-2">📈 Daily Average</h3>
+          <p className="text-2xl font-bold text-black mb-1">Rs.{analytics.dailyAverage.toLocaleString()}</p>
+          <p className="text-xs text-gray-500">Spending per day</p>
         </div>
-      </div>
-
-      {/* Additional Stats - Row 3 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <div className="bg-orange-50 p-3 rounded-lg border border-orange-200">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="text-sm font-medium text-orange-800">📈 Avg Per Expense</h3>
-          </div>
-          <p className="text-lg font-bold text-orange-600">Rs.{analytics.avgPerExpense.toLocaleString()}</p>
-          <p className="text-xs text-orange-500">Per transaction</p>
-        </div>
-        
-        <div className="bg-cyan-50 p-3 rounded-lg border border-cyan-200">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="text-sm font-medium text-cyan-800">📊 Total Transactions</h3>
-          </div>
-          <p className="text-lg font-bold text-cyan-600">{analytics.transactionCount}</p>
-          <p className="text-xs text-cyan-500">All transactions</p>
-        </div>
-        
-        {analytics.topExpenseCategory && (
-          <div className="bg-violet-50 p-3 rounded-lg border border-violet-200 col-span-2">
-            <div className="flex items-center justify-between mb-1">
-              <h3 className="text-sm font-medium text-violet-800">🏆 Top Expense Category</h3>
-            </div>
-            <div className="flex items-center justify-between">
-              <p className="text-lg font-bold text-violet-600 capitalize">{analytics.topExpenseCategory[0]}</p>
-              <p className="text-lg font-bold text-violet-600">Rs.{analytics.topExpenseCategory[1].toLocaleString()}</p>
-            </div>
-            <p className="text-xs text-violet-500">
-              {Math.round((analytics.topExpenseCategory[1] / analytics.totalExpenses) * 100)}% of total expenses
-            </p>
-          </div>
-        )}
       </div>
 
 
 
+
+
+      {/* Summary Overview */}
+      <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm mb-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">📊 Financial Overview</h3>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="text-center">
+            <p className="text-sm text-gray-600">Total Transactions</p>
+            <p className="text-xl font-bold text-black">{analytics.transactionCount}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-sm text-gray-600">Avg Per Expense</p>
+            <p className="text-xl font-bold text-black">Rs.{analytics.avgPerExpense.toLocaleString()}</p>
+          </div>
+          {analytics.topExpenseCategory && (
+            <div className="text-center col-span-2">
+              <p className="text-sm text-gray-600">Top Category</p>
+              <p className="text-xl font-bold text-black capitalize">{analytics.topExpenseCategory[0]}</p>
+              <p className="text-sm text-gray-500">Rs.{analytics.topExpenseCategory[1].toLocaleString()} ({Math.round((analytics.topExpenseCategory[1] / analytics.totalExpenses) * 100)}%)</p>
+            </div>
+          )}
+        </div>
+      </div>
+      
       {/* Expense Categories */}
       {Object.keys(analytics.expenseCategories).length > 0 && (
-        <div className="bg-white p-4 rounded-lg border">
-          <h3 className="font-medium mb-4">💸 Expense Breakdown</h3>
-          <div className="space-y-3">
+        <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">💸 Expense Breakdown</h3>
+          <div className="space-y-4">
             {Object.entries(analytics.expenseCategories)
               .filter(([category]) => category !== 'income' && category !== 'loan')
               .sort(([,a], [,b]) => b - a)
-              .map(([category, amount], index) => {
+              .slice(0, 5)
+              .map(([category, amount]) => {
                 const percentage = Math.round((amount / analytics.totalExpenses) * 100)
-                const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-red-500']
-                const color = colors[index % colors.length]
                 
                 return (
                   <div key={category} className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-3 h-3 rounded-full ${color}`}></div>
-                        <span className="capitalize font-medium">{category}</span>
-                      </div>
+                      <span className="capitalize font-medium text-gray-800">{category}</span>
                       <div className="text-right">
-                        <div className="font-bold">Rs.{amount.toLocaleString()}</div>
+                        <div className="font-bold text-black">Rs.{amount.toLocaleString()}</div>
                         <div className="text-sm text-gray-500">{percentage}%</div>
                       </div>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div 
-                        className={`${color} h-2 rounded-full transition-all duration-300`}
+                        className="bg-black h-2 rounded-full transition-all duration-300"
                         style={{ width: `${percentage}%` }}
                       ></div>
                     </div>

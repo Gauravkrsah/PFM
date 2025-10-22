@@ -57,8 +57,8 @@ class ExpenseParser:
                 'paid_by': debtor.title()
             }
         
-        # Pattern 0a: "got/received salary amount" like "got salary 100000"
-        salary_pattern = r'^(?:got|received)\s+salary\s+(\d+)$'
+        # Pattern 0a: "got/received salary amount" like "got salary 100000" or "got salary today 50000"
+        salary_pattern = r'^(?:got|received)\s+salary\s+(?:today\s+)?(\d+)$'
         salary_match = re.match(salary_pattern, text, re.IGNORECASE)
         if salary_match:
             amount = salary_match.group(1)
@@ -66,7 +66,7 @@ class ExpenseParser:
                 'amount': -int(amount),  # Negative for income
                 'item': 'salary',
                 'category': 'Income',
-                'remarks': 'Salary received',
+                'remarks': 'Got Salary Today' if 'today' in text.lower() else 'Salary received',
                 'paid_by': None
             }
         
@@ -83,7 +83,20 @@ class ExpenseParser:
                 'paid_by': None
             }
         
-        # Pattern 0c: "got back/received amount from person" like "got back 400 from sonu"
+        # Pattern 0c: General income patterns like "bonus 5000", "incentive 2000", "refund 1000"
+        income_pattern = r'^(salary|bonus|incentive|refund|income|earning|payment|received)\s+(\d+)$'
+        income_match = re.match(income_pattern, text, re.IGNORECASE)
+        if income_match:
+            income_type, amount = income_match.groups()
+            return {
+                'amount': -int(amount),  # Negative for income
+                'item': income_type.lower(),
+                'category': 'Income',
+                'remarks': f'{income_type.title()} received',
+                'paid_by': None
+            }
+        
+        # Pattern 0d: "got back/received amount from person" like "got back 400 from sonu"
         repayment_pattern = r'^(?:got\s+back|received|returned)\s+(\d+)\s+from\s+([a-zA-Z]+)'
         repayment_match = re.match(repayment_pattern, text, re.IGNORECASE)
         if repayment_match:
@@ -122,22 +135,40 @@ class ExpenseParser:
                 'paid_by': person.title()
             }
         
+        # Pattern 1c: "loan paid amount" like "loan paid 400"
+        loan_paid_pattern = r'^loan\s+paid\s+(\d+)$'
+        loan_paid_match = re.match(loan_paid_pattern, text, re.IGNORECASE)
+        if loan_paid_match:
+            amount = loan_paid_match.group(1)
+            return {
+                'amount': int(amount),
+                'item': 'loan given',
+                'category': 'Loan',
+                'remarks': 'Loan given',
+                'paid_by': None
+            }
+        
         # Pattern 2: "item person amount" like "rent sonu 20000" or "tea gaurav 100"
+        # Only match if it's clearly a person name (common names or single word after single-word item)
+        common_item_words = ['case', 'cover', 'stand', 'holder', 'bag', 'box', 'pack', 'set', 'kit']
         food_words = ['lunch', 'dinner', 'breakfast', 'snack', 'meal', 'tea', 'coffee', 'food']
         pattern1 = r'^([a-zA-Z\s]+?)\s+([a-zA-Z]+)\s+(\d+)$'
         match1 = re.match(pattern1, text)
         if match1:
             item, potential_person, amount = match1.groups()
-            if potential_person.lower() not in food_words:
-                item = self._clean_item_name(item)
-                category = self._categorize(item)
-                return {
-                    'amount': int(amount),
-                    'item': item.lower(),
-                    'category': category,
-                    'remarks': f"{item.title()} - Paid by {potential_person.title()}",
-                    'paid_by': potential_person.title()
-                }
+            # Skip if potential_person is likely part of item description
+            if potential_person.lower() not in food_words and potential_person.lower() not in common_item_words:
+                # Only treat as person if item is single word (like "rent", "tea")
+                if len(item.split()) == 1:
+                    item = self._clean_item_name(item)
+                    category = self._categorize(item)
+                    return {
+                        'amount': int(amount),
+                        'item': item.lower(),
+                        'category': category,
+                        'remarks': f"{item.title()} - Paid by {potential_person.title()}",
+                        'paid_by': potential_person.title()
+                    }
         
         # Pattern 3: "item for/on context amount" like "samosa for lunch 80"
         pattern2a = r'^([a-zA-Z\s]+?)\s+(?:for|on)\s+([a-zA-Z\s]+?)\s+(\d+)$'
@@ -212,6 +243,21 @@ class ExpenseParser:
                 'remarks': item.title()
             }
         
+        # Pattern 6a: "item - paid by person amount" like "Purchased Phone - Paid by Case 500"
+        pattern4a = r'^(.+?)\s*-\s*paid\s+by\s+([a-zA-Z]+)\s+(\d+)$'
+        match4a = re.match(pattern4a, text, re.IGNORECASE)
+        if match4a:
+            item, person, amount = match4a.groups()
+            item = self._clean_item_name(item)
+            category = self._categorize(item)
+            return {
+                'amount': int(amount),
+                'item': item.lower(),
+                'category': category,
+                'remarks': f"{item.title()} - Paid by {person.title()}",
+                'paid_by': person.title()
+            }
+        
         # Pattern 6: "item amount paid by person" like "rent 20000 paid by sonu"
         pattern4 = r'^([a-zA-Z\s]+?)\s+(\d+)\s+paid\s+by\s+([a-zA-Z]+)$'
         match4 = re.match(pattern4, text, re.IGNORECASE)
@@ -241,11 +287,35 @@ class ExpenseParser:
                 'remarks': item.title()
             }
         
+        # Pattern 6c: "item of amount" like "Purchased Phone of 500"
+        pattern4c = r'^(.+?)\s+of\s+(\d+)$'
+        match4c = re.match(pattern4c, text, re.IGNORECASE)
+        if match4c:
+            item, amount = match4c.groups()
+            item = self._clean_item_name(item)
+            category = self._categorize(item)
+            return {
+                'amount': int(amount),
+                'item': item.lower(),
+                'category': category,
+                'remarks': item.title()
+            }
+        
         # Pattern 7: "item amount" like "grocery 300" or "biryani 500"
         pattern5 = r'^([a-zA-Z\s]+?)\s+(\d+)$'
         match5 = re.match(pattern5, text)
         if match5:
             item, amount = match5.groups()
+            # Special handling for loan transactions
+            if item.lower().strip() == 'loan':
+                return {
+                    'amount': int(amount),
+                    'item': 'loan given',
+                    'category': 'Loan',
+                    'remarks': 'Loan given',
+                    'paid_by': None
+                }
+            
             item = self._clean_item_name(item)
             category = self._categorize(item)
             return {
@@ -361,7 +431,11 @@ class ExpenseParser:
         
         reply_parts = []
         for expense in expenses:
-            reply_parts.append(f"SUCCESS: Added Rs.{expense['amount']} -> {expense['category']} ({expense['remarks']})")
+            amount = expense['amount']
+            if amount < 0:  # Income
+                reply_parts.append(f"SUCCESS: Added Rs.{abs(amount)} -> {expense['category']} ({expense['remarks']})")
+            else:  # Expense
+                reply_parts.append(f"SUCCESS: Added Rs.{amount} -> {expense['category']} ({expense['remarks']})")
         
         return '\n'.join(reply_parts)
 
@@ -480,10 +554,16 @@ Return ONLY valid JSON:
             # Try multi-expense parsing
             multi_expenses = self._parse_multi_expenses(text)
             if multi_expenses:
-                reply_parts = [f"Rs.{exp['amount']} -> {exp['category']} ({exp['item'].title()})" for exp in multi_expenses]
+                reply_parts = []
+                for exp in multi_expenses:
+                    amount = exp['amount']
+                    if amount < 0:  # Income
+                        reply_parts.append(f"Rs.{abs(amount)} -> {exp['category']} ({exp['item'].title()})")
+                    else:  # Expense
+                        reply_parts.append(f"Rs.{amount} -> {exp['category']} ({exp['item'].title()})")
                 return {
                     "expenses": multi_expenses,
-                    "reply": f"SUCCESS: Added {len(multi_expenses)} expenses: " + ", ".join(reply_parts)
+                    "reply": f"SUCCESS: Added {len(multi_expenses)} transactions: " + ", ".join(reply_parts)
                 }
             
             # Fallback to rule-based parser

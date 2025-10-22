@@ -41,25 +41,35 @@ class ExpenseAnalyzer:
                 'categories': {},
                 'recent_expenses': [],
                 'top_categories': [],
-                'average_per_day': 0
+                'average_per_day': 0,
+                'total_income': 0,
+                'income_count': 0,
+                'net_balance': 0
             }
 
-        total = sum(exp.get('amount', 0) for exp in expenses_data if exp.get('amount', 0) > 0)
-        count = len([exp for exp in expenses_data if exp.get('amount', 0) > 0])
+        # Separate expenses and income
+        expenses = [exp for exp in expenses_data if exp.get('amount', 0) > 0 and exp.get('category', '').lower() != 'income']
+        income_transactions = [exp for exp in expenses_data if exp.get('amount', 0) < 0 or exp.get('category', '').lower() == 'income']
+        
+        total_expenses = sum(exp.get('amount', 0) for exp in expenses)
+        total_income = sum(abs(exp.get('amount', 0)) for exp in income_transactions)
+        
+        expense_count = len(expenses)
+        income_count = len(income_transactions)
+        
+        net_balance = total_income - total_expenses
 
-        # Category breakdown (only positive amounts - expenses)
+        # Category breakdown (only expenses)
         categories = {}
-        for exp in expenses_data:
-            amount = exp.get('amount', 0)
-            if amount > 0:  # Only count expenses, not income
-                category = exp.get('category', 'Other').lower()
-                categories[category] = categories.get(category, 0) + amount
+        for exp in expenses:
+            category = exp.get('category', 'Other').lower()
+            categories[category] = categories.get(category, 0) + exp.get('amount', 0)
 
         # Sort categories by amount
         top_categories = sorted(categories.items(), key=lambda x: x[1], reverse=True)[:5]
 
-        # Recent expenses (last 5)
-        recent_expenses = expenses_data[:5] if len(expenses_data) >= 5 else expenses_data
+        # Recent expenses (last 5 expenses only)
+        recent_expenses = expenses[:5] if len(expenses) >= 5 else expenses
 
         # Calculate average per day (assuming data spans multiple days)
         dates = set()
@@ -75,16 +85,19 @@ class ExpenseAnalyzer:
                     dates.add(str(date_val))
 
         days_count = len(dates) if dates else 1
-        average_per_day = total / days_count if days_count > 0 else 0
+        average_per_day = total_expenses / days_count if days_count > 0 else 0
 
         return {
-            'total': total,
-            'count': count,
+            'total': total_expenses,
+            'count': expense_count,
             'categories': categories,
             'recent_expenses': recent_expenses,
             'top_categories': top_categories,
             'average_per_day': round(average_per_day, 2),
-            'days_tracked': days_count
+            'days_tracked': days_count,
+            'total_income': total_income,
+            'income_count': income_count,
+            'net_balance': net_balance
         }
 
     def find_specific_item(self, query: str, expenses_data: List[Dict]) -> Dict[str, Any]:
@@ -292,14 +305,22 @@ class ExpenseAnalyzer:
                     else:
                         return f"You haven't spent anything on {category}{time_context}."
         
+        # Income queries
+        if any(word in query_lower for word in ['income', 'salary', 'earning', 'received', 'got']):
+            if analysis.get('total_income', 0) > 0:
+                return f"Your total income{time_context}: Rs.{analysis['total_income']} across {analysis['income_count']} transactions. Net balance: Rs.{analysis['net_balance']} ({'surplus' if analysis['net_balance'] >= 0 else 'deficit'})."
+            else:
+                return f"No income recorded{time_context}."
+        
         # Total/Summary queries
         if any(word in query_lower for word in ['total', 'all', 'overall', 'everything', 'entire', 'whole']):
+            income_summary = f" Income: Rs.{analysis.get('total_income', 0)} ({analysis.get('income_count', 0)} txn)." if analysis.get('total_income', 0) > 0 else ""
             if period_name:
-                return f"You spent Rs.{analysis['total']} in {period_name} across {analysis['count']} transactions."
+                return f"You spent Rs.{analysis['total']} in {period_name} across {analysis['count']} transactions.{income_summary}"
             elif any(word in query_lower for word in ['till now', 'so far', 'upto now', 'up to now']):
-                return f"You spent Rs.{analysis['total']} across {analysis['count']} transactions."
+                return f"You spent Rs.{analysis['total']} across {analysis['count']} transactions.{income_summary}"
             else:
-                return f"You spent Rs.{analysis['total']} across {analysis['count']} transactions{time_context}."
+                return f"You spent Rs.{analysis['total']} across {analysis['count']} transactions{time_context}.{income_summary}"
         
         # Specific item queries
         if expenses_data and any(word in query_lower for word in ['spend', 'spent', 'much', 'cost', 'price']):
@@ -319,10 +340,11 @@ class ExpenseAnalyzer:
         
         # General spending queries
         if any(word in query_lower for word in ['spent', 'expense', 'much']):
+            income_info = f" Income: Rs.{analysis.get('total_income', 0)}." if analysis.get('total_income', 0) > 0 else ""
             if period_name:
-                return f"You spent Rs.{analysis['total']} in {period_name} across {analysis['count']} transactions."
+                return f"You spent Rs.{analysis['total']} in {period_name} across {analysis['count']} transactions.{income_info}"
             else:
-                return f"You spent Rs.{analysis['total']} across {analysis['count']} transactions{time_context}."
+                return f"You spent Rs.{analysis['total']} across {analysis['count']} transactions{time_context}.{income_info}"
 
         # Breakdown/Category analysis
         if any(word in query_lower for word in ['category', 'breakdown', 'categories', 'where', 'what']):
@@ -344,7 +366,9 @@ class ExpenseAnalyzer:
 
         # Average/Daily spending
         if any(word in query_lower for word in ['average', 'daily', 'per day']):
-            return f"Your average daily {context} spending is Rs.{analysis['average_per_day']} over {analysis['days_tracked']} days."
+            income_avg = analysis.get('total_income', 0) / analysis['days_tracked'] if analysis['days_tracked'] > 0 and analysis.get('total_income', 0) > 0 else 0
+            income_info = f" Daily income average: Rs.{round(income_avg, 2)}." if income_avg > 0 else ""
+            return f"Your average daily {context} spending is Rs.{analysis['average_per_day']} over {analysis['days_tracked']} days.{income_info}"
 
         # Comparison queries
         if 'most' in query_lower and ('spent' in query_lower or 'expensive' in query_lower):
@@ -354,7 +378,8 @@ class ExpenseAnalyzer:
 
         # Count queries
         if any(word in query_lower for word in ['how many', 'count', 'number']):
-            return f"You have {analysis['count']} transactions in your {context} expenses, totaling Rs.{analysis['total']}."
+            income_info = f" and {analysis.get('income_count', 0)} income transactions (Rs.{analysis.get('total_income', 0)})" if analysis.get('total_income', 0) > 0 else ""
+            return f"You have {analysis['count']} expense transactions totaling Rs.{analysis['total']}{income_info} in your {context} records."
 
         # Who paid queries
         if any(word in query_lower for word in ['who paid', 'who payed', 'paid by', 'payed by']):
@@ -386,12 +411,21 @@ class ExpenseAnalyzer:
 
         # Help/What can I ask queries
         if any(word in query_lower for word in ['help', 'what can', 'options']):
-            return f"You can ask me about:\n• Total expenses ('What are my expenses till now?')\n• Category breakdowns ('Show me my food expenses')\n• Recent transactions ('What are my recent expenses?')\n• Daily averages ('What's my daily spending?')\n• Comparisons ('What did I spend the most on?')\n• Who paid ('Who paid for grocery last time?')"
+            return f"You can ask me about:\n• Total expenses ('What are my expenses till now?')\n• Income tracking ('What's my total income?')\n• Net balance ('What's my balance?')\n• Category breakdowns ('Show me my food expenses')\n• Recent transactions ('What are my recent expenses?')\n• Daily averages ('What's my daily spending?')\n• Comparisons ('What did I spend the most on?')\n• Who paid ('Who paid for grocery last time?')"
 
+        # Balance/Net queries
+        if any(word in query_lower for word in ['balance', 'net', 'left', 'remaining', 'save', 'saved']):
+            if analysis.get('total_income', 0) > 0:
+                return f"Your net balance{time_context}: Rs.{analysis['net_balance']} ({'surplus' if analysis['net_balance'] >= 0 else 'deficit'}). Income: Rs.{analysis['total_income']}, Expenses: Rs.{analysis['total']}."
+            else:
+                return f"No income data available to calculate balance. Total expenses: Rs.{analysis['total']}."
+        
         # Default comprehensive response with better analysis
         if analysis['top_categories']:
             top_category, top_amount = analysis['top_categories'][0]
             percentage = (top_amount / analysis['total'] * 100) if analysis['total'] > 0 else 0
-            return f"You spent Rs.{analysis['total']}{time_context} across {analysis['count']} transactions. Top spending: {top_category.title()} (Rs.{top_amount}, {percentage:.1f}%)."
+            income_info = f" Income: Rs.{analysis.get('total_income', 0)} ({analysis.get('income_count', 0)} txn)." if analysis.get('total_income', 0) > 0 else ""
+            return f"You spent Rs.{analysis['total']}{time_context} across {analysis['count']} transactions. Top spending: {top_category.title()} (Rs.{top_amount}, {percentage:.1f}%).{income_info}"
         else:
-            return f"You spent Rs.{analysis['total']}{time_context} across {analysis['count']} transactions."
+            income_info = f" Income: Rs.{analysis.get('total_income', 0)} ({analysis.get('income_count', 0)} txn)." if analysis.get('total_income', 0) > 0 else ""
+            return f"You spent Rs.{analysis['total']}{time_context} across {analysis['count']} transactions.{income_info}"

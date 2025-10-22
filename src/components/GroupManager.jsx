@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../supabase'
 import { useToast } from './Toast'
 
-export default function GroupManager({ user, currentGroup, onGroupChange }) {
+export default function GroupManager({ user, currentGroup, onGroupChange, onClearChat }) {
   const [groups, setGroups] = useState([])
   const [showCreate, setShowCreate] = useState(false)
   const [groupName, setGroupName] = useState('')
@@ -12,6 +12,7 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [loadingMembers, setLoadingMembers] = useState(false)
   const [showMembers, setShowMembers] = useState(false)
+  const [showInviteModal, setShowInviteModal] = useState(false)
   const toast = useToast()
 
   const fetchGroups = useCallback(async () => {
@@ -261,76 +262,149 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
         </div>
       )}
       
-      <div className="flex items-center gap-2 flex-wrap">
-        <select
-          value={currentGroup?.id || 'personal'}
-          onChange={(e) => {
-            const group = e.target.value === 'personal' ? null : groups.find(g => g.id === parseInt(e.target.value))
-            onGroupChange(group)
-            setShowMembers(false)
-          }}
-          className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent bg-white hover:border-gray-400 transition-colors"
-        >
-          <option value="personal">👤 Personal</option>
-          {groups.map(group => (
-            <option key={group.id} value={group.id}>👥 {group.name}</option>
-          ))}
-        </select>
-        
-        <button
-          onClick={() => setShowCreate(true)}
-          className="px-3 py-2 text-xs bg-black text-white rounded-lg hover:bg-gray-800 transition-colors font-medium"
-        >
-          + New
-        </button>
+      <div className="w-full">
+        <div className="flex items-center gap-2 flex-wrap lg:flex-nowrap">
+          <select
+            value={currentGroup?.id || 'personal'}
+            onChange={(e) => {
+              const group = e.target.value === 'personal' ? null : groups.find(g => g.id === parseInt(e.target.value))
+              onGroupChange(group)
+              setShowMembers(false)
+            }}
+            className="flex-1 lg:w-64 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent bg-white hover:border-gray-400 transition-colors"
+          >
+            <option value="personal">👤 Personal</option>
+            {groups.map(group => (
+              <option key={group.id} value={group.id}>👥 {group.name}</option>
+            ))}
+          </select>
+          
+          <button
+            onClick={() => setShowCreate(true)}
+            className="px-3 py-2 text-xs bg-black text-white rounded-lg hover:bg-gray-800 transition-colors font-medium whitespace-nowrap"
+          >
+            + New
+          </button>
 
-        {currentGroup && (
-          <>
-            <button
-              onClick={() => setShowMembers(!showMembers)}
-              className="px-3 py-2 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
-            >
-              👥 Members
-            </button>
-            
-            <form onSubmit={inviteUser} className="flex gap-1.5 ml-auto">
-              <input
-                type="email"
-                placeholder="Invite email"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                className="px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent w-36"
-              />
+          {currentGroup && (
+            <>
               <button
-                type="submit"
-                className="px-3 py-2 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                onClick={() => setShowMembers(!showMembers)}
+                className="hidden lg:block px-3 py-2 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+              >
+                👥 Members
+              </button>
+              
+              <form onSubmit={inviteUser} className="hidden lg:flex gap-1.5 ml-auto">
+                <input
+                  type="email"
+                  placeholder="Invite email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  className="px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent w-36"
+                />
+                <button
+                  type="submit"
+                  className="px-3 py-2 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+                >
+                  Invite
+                </button>
+              </form>
+              
+              <button
+                onClick={leaveGroup}
+                disabled={isProcessing}
+                className="hidden lg:block px-3 py-2 text-xs bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+              >
+                Leave
+              </button>
+              
+              {currentGroup.created_by === user.id && (
+                <button
+                  onClick={deleteGroup}
+                  disabled={isProcessing}
+                  className="hidden lg:block px-3 py-2 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                >
+                  Delete
+                </button>
+              )}
+              
+              <button
+                onClick={() => setShowInviteModal(true)}
+                className="lg:hidden px-3 py-2 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
               >
                 Invite
               </button>
-            </form>
-            
-            <button
-              onClick={leaveGroup}
-              disabled={isProcessing}
-              className="px-3 py-2 text-xs bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-              title="Leave Group"
-            >
-              Leave
-            </button>
-            
-            {currentGroup.created_by === user.id && (
-              <button
-                onClick={deleteGroup}
-                disabled={isProcessing}
-                className="px-3 py-2 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-                title="Delete Group"
-              >
-                Delete
-              </button>
-            )}
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
+
+      {currentGroup && (
+        <div className="mt-2 flex items-center gap-1.5 lg:hidden">
+          <button
+            onClick={() => setShowMembers(!showMembers)}
+            className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+          >
+            Members
+          </button>
+          <button
+            onClick={leaveGroup}
+            disabled={isProcessing}
+            className="px-2 py-1 text-xs bg-yellow-500 text-white rounded hover:bg-yellow-600 disabled:opacity-50"
+          >
+            Leave
+          </button>
+          {currentGroup.created_by === user.id && (
+            <button
+              onClick={deleteGroup}
+              disabled={isProcessing}
+              className="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50"
+            >
+              Delete
+            </button>
+          )}
+          <button
+            onClick={onClearChat}
+            className="px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 whitespace-nowrap"
+          >
+            Clear Chat
+          </button>
+        </div>
+      )}
+
+      {showInviteModal && currentGroup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-sm w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Invite Member</h3>
+              <button onClick={() => setShowInviteModal(false)} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <form onSubmit={(e) => { inviteUser(e); setShowInviteModal(false); }} className="space-y-3">
+              <input
+                type="email"
+                placeholder="Enter email address"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <button type="submit" className="flex-1 px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                  Send Invite
+                </button>
+                <button type="button" onClick={() => setShowInviteModal(false)} className="flex-1 px-4 py-2 text-sm bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {showCreate && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">

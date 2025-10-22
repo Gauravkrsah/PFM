@@ -46,7 +46,7 @@
   }
   
   .sidebar {
-    @apply fixed left-0 top-0 h-full w-56 bg-white border-r border-gray-200 hidden lg:block;
+    @apply fixed left-0 top-0 h-full w-56 bg-white border-r border-gray-200 hidden lg:block z-50;
   }
   
   .bottom-nav {
