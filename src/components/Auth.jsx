@@ -43,7 +43,7 @@ export default function Auth({ onAuth }) {
     try {
       if (isOtpVerification) {
         // Handle OTP verification
-        const { data, error } = await supabase.auth.verifyOtp({
+        const { error } = await supabase.auth.verifyOtp({
           email,
           token: otp,
           type: 'signup'
@@ -95,7 +95,7 @@ export default function Auth({ onAuth }) {
         }
       } else {
         // Handle sign in
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+        const { error } = await supabase.auth.signInWithPassword({ email, password })
         
         if (error) {
           toast.error('Error: ' + error.message)
@@ -105,7 +105,6 @@ export default function Auth({ onAuth }) {
       }
     } catch (err) {
       toast.error('Please configure Supabase credentials in .env file')
-      console.error('Supabase not configured:', err)
     }
     setLoading(false)
   }

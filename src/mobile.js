@@ -28,9 +28,9 @@ export const initializeMobile = async () => {
       // Hide splash screen
       await SplashScreen.hide();
       
-      console.log('Mobile app initialized successfully');
+      // Mobile app initialized successfully
     } catch (error) {
-      console.error('Error initializing mobile app:', error);
+      // Error handled silently
     }
   }
 };

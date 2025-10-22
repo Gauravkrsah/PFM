@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../supabase'
 
 // Mock data for testing when Supabase is not available or empty
@@ -39,11 +39,7 @@ export default function EnhancedAnalytics({ currentGroup, user }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  useEffect(() => {
-    fetchAnalytics()
-  }, [currentGroup, timeRange])
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     setLoading(true)
     setError(null)
     
@@ -74,22 +70,18 @@ export default function EnhancedAnalytics({ currentGroup, user }) {
         const { data: fetchedData, error } = await query.order('date', { ascending: false })
         
         if (error) {
-          console.error('Error fetching analytics data:', error)
-          console.log('Falling back to mock data due to database error')
           data = mockExpenses
           usesMockData = true
         } else {
           data = fetchedData || []
         }
       } else {
-        console.log('No user authenticated, using mock data')
         data = mockExpenses
         usesMockData = true
       }
 
       // If no real data found, use mock data for demonstration
       if (!usesMockData && (!data || data.length === 0)) {
-        console.log('No expenses found, using mock data for demonstration')
         data = mockExpenses
         usesMockData = true
       }
@@ -256,12 +248,15 @@ export default function EnhancedAnalytics({ currentGroup, user }) {
         })
       }
     } catch (error) {
-      console.error('Error in fetchAnalytics:', error)
       setError(`Unexpected error: ${error.message}`)
     } finally {
       setLoading(false)
     }
-  }
+  }, [user, currentGroup, timeRange])
+
+  useEffect(() => {
+    fetchAnalytics()
+  }, [currentGroup, timeRange, fetchAnalytics])
 
   const getExpensePercentage = (amount) => {
     const expenseTotal = Object.values(analytics.expenseCategories).reduce((sum, amt) => sum + amt, 0)

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import axios from 'axios'
 import { supabase } from '../supabase'
 
@@ -6,9 +6,7 @@ import { supabase } from '../supabase'
 const getApiBaseUrl = () => {
   // For mobile app, use deployed backend
   if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-    const railwayUrl = 'https://pfm-production.up.railway.app'
-    console.log('🚀 Mobile app using Railway URL:', railwayUrl)
-    return railwayUrl
+    return 'https://pfm-production.up.railway.app'
   }
   if (window.APP_CONFIG && window.APP_CONFIG.API_BASE_URL) {
     return window.APP_CONFIG.API_BASE_URL
@@ -35,17 +33,14 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
     const ws = new WebSocket(wsUrl)
     
     ws.onopen = () => {
-      console.log('WebSocket connected')
       setWsConnected(true)
     }
     
     ws.onclose = () => {
-      console.log('WebSocket disconnected')
       setWsConnected(false)
     }
     
-    ws.onerror = (error) => {
-      console.log('WebSocket error:', error)
+    ws.onerror = () => {
       setWsConnected(false)
     }
     
@@ -66,6 +61,30 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
     } catch { return [] }
   })
 
+  const fetchExpensesData = useCallback(async () => {
+    try {
+      let query = supabase.from('expenses').select('*')
+      
+      if (currentGroup) {
+        query = query.eq('group_id', currentGroup.id)
+      } else {
+        query = query.eq('user_id', user.id).is('group_id', null)
+      }
+      
+      const { data, error } = await query
+        .order('created_at', { ascending: false })
+        .limit(50)
+      
+      if (error) {
+        setExpensesData([])
+      } else {
+        setExpensesData(data || [])
+      }
+    } catch (err) {
+      setExpensesData([])
+    }
+  }, [user, currentGroup])
+
   // Save messages to localStorage
   useEffect(() => {
     localStorage.setItem('pfm_input_messages', JSON.stringify(inputMessages))
@@ -81,53 +100,16 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
 
   useEffect(() => {
     if (user && mode === 'chat') {
-      console.log('🔄 Mode or context changed, fetching fresh data...')
       fetchExpensesData()
     }
-  }, [user, mode, currentGroup])
+  }, [user, mode, currentGroup, fetchExpensesData])
 
   // Also fetch data when switching to chat mode
   useEffect(() => {
     if (mode === 'chat' && user) {
       fetchExpensesData()
     }
-  }, [mode])
-
-  const fetchExpensesData = async () => {
-    try {
-      console.log('🔄 Fetching expenses data...')
-      console.log('👤 User ID:', user?.id)
-      console.log('🏢 Current group:', currentGroup?.name || 'Personal')
-      
-      let query = supabase.from('expenses').select('*')
-      
-      if (currentGroup) {
-        // Fetch group expenses
-        console.log('🏢 Fetching GROUP expenses for group ID:', currentGroup.id)
-        query = query.eq('group_id', currentGroup.id)
-      } else {
-        // Fetch personal expenses (no group_id)
-        console.log('👤 Fetching PERSONAL expenses for user ID:', user.id)
-        query = query.eq('user_id', user.id).is('group_id', null)
-      }
-      
-      const { data, error } = await query
-        .order('created_at', { ascending: false })
-        .limit(50)
-      
-      if (error) {
-        console.error('❌ Database error fetching expenses:', error)
-        setExpensesData([])
-      } else {
-        console.log('✅ Fetched', data?.length || 0, 'expenses')
-        console.log('📊 Sample data:', data?.slice(0, 2))
-        setExpensesData(data || [])
-      }
-    } catch (err) {
-      console.error('❌ Unexpected error fetching expenses:', err)
-      setExpensesData([])
-    }
-  }
+  }, [mode, user, fetchExpensesData])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -156,28 +138,22 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
     try {
       if (mode === 'input') {
         // Only handle personal expense input in input mode
-        console.log('🔄 Sending parse request:', input)
         const response = await axios.post(`${getApiBaseUrl()}/parse`, {
           text: input
         })
         const { expenses, reply } = response.data
-        console.log('✅ Parse response:', { expenses, reply })
         setInputMessages(prev => [...prev, { type: 'system', text: reply }])
         if (expenses && expenses.length > 0) {
           try {
             await onExpenseAdded(expenses)
             setInputMessages(prev => [...prev, { type: 'system', text: '✅ Expenses saved successfully!' }])
           } catch (error) {
-            console.error('❌ Database save error:', error)
+
             setInputMessages(prev => [...prev, { type: 'system', text: '❌ Error saving to database: ' + error.message }])
           }
         }
       } else {
         // Chat mode: use current context (personal vs group)
-        console.log('🔄 Preparing chat request...')
-        console.log('👤 Current user:', user?.email)
-        console.log('🏢 Current group:', currentGroup?.name || 'Personal')
-        console.log('📊 Expenses data count:', expensesData.length)
         
         const { data: { user: freshUser } } = await supabase.auth.getUser()
         const currentUser = freshUser || user
@@ -202,27 +178,15 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
 
         if (currentGroup) {
           // GROUP MODE: send group data
-          console.log('🏢 Using GROUP mode with', expensesData.length, 'expenses')
           chatPayload.group_name = currentGroup.name
           chatPayload.group_expenses_data = expensesData
         } else {
           // PERSONAL MODE: send personal data
-          console.log('👤 Using PERSONAL mode with', expensesData.length, 'expenses')
           chatPayload.expenses_data = expensesData
         }
 
-        console.log('🔄 Sending chat request:', {
-          text: chatPayload.text,
-          user_name: chatPayload.user_name,
-          group_name: chatPayload.group_name,
-          personal_data_count: chatPayload.expenses_data?.length || 0,
-          group_data_count: chatPayload.group_expenses_data?.length || 0
-        })
-
         const response = await axios.post(`${getApiBaseUrl()}/chat`, chatPayload)
         const { reply, error } = response.data
-        
-        console.log('✅ Chat response:', { reply, error })
         
         if (error) {
           setChatMessages(prev => [...prev, { type: 'system', text: reply + '\n\n⚠️ There was an error processing your request.' }])
@@ -231,23 +195,18 @@ export default function Chat({ onExpenseAdded, onTableRefresh, user, currentGrou
         }
       }
     } catch (error) {
-      console.error('❌ Request failed:', error)
-      
       let errorMessage = '❌ Error processing request'
       
       if (error.response) {
         // Server responded with error status
-        console.error('Server error:', error.response.status, error.response.data)
         errorMessage = `❌ Server error (${error.response.status}): ${error.response.data?.detail || error.response.data?.message || 'Unknown error'}`
       } else if (error.request) {
         // Request was made but no response received - use fallback
-        console.error('Network error:', error.request)
         const contextType = currentGroup ? `group "${currentGroup.name}"` : 'personal'
         const fallbackResponse = getFallbackResponse(input, contextType)
         errorMessage = `${fallbackResponse}\n\n🔧 Technical details: Network connection failed`
       } else {
         // Something else happened
-        console.error('Unexpected error:', error.message)
         errorMessage = `❌ Unexpected error: ${error.message}`
       }
       

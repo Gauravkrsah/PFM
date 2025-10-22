@@ -78,7 +78,6 @@ export default function ResetPassword() {
       }
     } catch (err) {
       toast.error('An error occurred while updating your password')
-      console.error('Password reset error:', err)
     }
     
     setLoading(false)

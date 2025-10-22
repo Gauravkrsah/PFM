@@ -1,9 +1,25 @@
 from typing import List, Dict, Any
+from datetime import datetime, timedelta
+import re
 
 class ExpenseAnalyzer:
     """Advanced expense analysis and query processing"""
 
     def __init__(self):
+        self.months = {
+            'january': 1, 'jan': 1,
+            'february': 2, 'feb': 2,
+            'march': 3, 'mar': 3,
+            'april': 4, 'apr': 4,
+            'may': 5,
+            'june': 6, 'jun': 6,
+            'july': 7, 'jul': 7,
+            'august': 8, 'aug': 8,
+            'september': 9, 'sep': 9, 'sept': 9,
+            'october': 10, 'oct': 10,
+            'november': 11, 'nov': 11,
+            'december': 12, 'dec': 12
+        }
         self.categories = {
             'food': ['food', 'biryani', 'pizza', 'restaurant', 'hotel', 'meal', 'lunch', 'dinner', 'eat', 'cafe', 'snack', 'breakfast'],
             'groceries': ['grocery', 'groceries', 'vegetables', 'fruits', 'market', 'supermarket', 'store', 'milk', 'bread'],
@@ -77,10 +93,16 @@ class ExpenseAnalyzer:
         item_keywords = []
         words = query_lower.split()
         
+        # Words that indicate aggregate queries, not specific items
+        aggregate_keywords = ['total', 'all', 'everything', 'overall', 'sum', 'entire', 'whole', 'complete']
+        
         # Look for "on [item]" or "for [item]" patterns
         for i, word in enumerate(words):
             if word in ['on', 'for', 'spend', 'spent'] and i + 1 < len(words):
-                item_keywords.append(words[i + 1])
+                next_word = words[i + 1]
+                # Skip if next word is an aggregate keyword
+                if next_word not in aggregate_keywords:
+                    item_keywords.append(next_word)
         
         # Also check for direct item mentions
         common_items = ['momo', 'biryani', 'tea', 'coffee', 'lunch', 'dinner', 'grocery', 'petrol', 'taxi', 'rent', 'chicken', 'lassi', 'dahi', 'ghee', 'chiya']
@@ -116,11 +138,138 @@ class ExpenseAnalyzer:
         
         return None
 
+    def filter_by_date_range(self, expenses_data: List[Dict], start_date: datetime = None, end_date: datetime = None) -> List[Dict]:
+        """Filter expenses by date range"""
+        if not expenses_data:
+            return []
+        
+        filtered = []
+        for exp in expenses_data:
+            date_val = exp.get('date') or exp.get('created_at')
+            if not date_val:
+                continue
+            
+            try:
+                # Parse date string
+                if isinstance(date_val, str):
+                    date_part = date_val.split('T')[0] if 'T' in date_val else date_val.split(' ')[0]
+                    exp_date = datetime.strptime(date_part, '%Y-%m-%d')
+                else:
+                    exp_date = datetime.fromisoformat(str(date_val))
+                
+                # Check if within range
+                if start_date and exp_date < start_date:
+                    continue
+                if end_date and exp_date > end_date:
+                    continue
+                
+                filtered.append(exp)
+            except:
+                continue
+        
+        return filtered
+    
+    def extract_time_period(self, query: str) -> tuple:
+        """Extract time period from query and return (start_date, end_date, period_name)"""
+        query_lower = query.lower()
+        now = datetime.now()
+        
+        # This month
+        if 'this month' in query_lower or 'current month' in query_lower:
+            start = datetime(now.year, now.month, 1)
+            return (start, now, 'this month')
+        
+        # Last month
+        if 'last month' in query_lower or 'previous month' in query_lower:
+            if now.month == 1:
+                start = datetime(now.year - 1, 12, 1)
+                end = datetime(now.year, 1, 1) - timedelta(days=1)
+            else:
+                start = datetime(now.year, now.month - 1, 1)
+                end = datetime(now.year, now.month, 1) - timedelta(days=1)
+            return (start, end, 'last month')
+        
+        # Specific month name
+        for month_name, month_num in self.months.items():
+            if month_name in query_lower:
+                # Determine year
+                year = now.year
+                if month_num > now.month:
+                    year = now.year - 1
+                
+                start = datetime(year, month_num, 1)
+                if month_num == 12:
+                    end = datetime(year + 1, 1, 1) - timedelta(days=1)
+                else:
+                    end = datetime(year, month_num + 1, 1) - timedelta(days=1)
+                
+                return (start, end, f"{month_name.title()} {year}")
+        
+        # This week
+        if 'this week' in query_lower or 'current week' in query_lower:
+            start = now - timedelta(days=now.weekday())
+            return (start, now, 'this week')
+        
+        # Last week
+        if 'last week' in query_lower or 'previous week' in query_lower:
+            start = now - timedelta(days=now.weekday() + 7)
+            end = now - timedelta(days=now.weekday() + 1)
+            return (start, end, 'last week')
+        
+        # Today
+        if 'today' in query_lower:
+            start = datetime(now.year, now.month, now.day)
+            return (start, now, 'today')
+        
+        # Yesterday
+        if 'yesterday' in query_lower:
+            yesterday = now - timedelta(days=1)
+            start = datetime(yesterday.year, yesterday.month, yesterday.day)
+            end = start + timedelta(days=1) - timedelta(seconds=1)
+            return (start, end, 'yesterday')
+        
+        # Last N days
+        days_match = re.search(r'last (\d+) days?', query_lower)
+        if days_match:
+            days = int(days_match.group(1))
+            start = now - timedelta(days=days)
+            return (start, now, f'last {days} days')
+        
+        return (None, None, None)
+    
     def process_query(self, query: str, analysis: Dict[str, Any], context: str = "personal", expenses_data: List[Dict] = None) -> str:
         """Process natural language queries about expenses with advanced pattern matching"""
         query_lower = query.lower()
         
-        # Specific item queries - check this FIRST
+        # Extract time period if present
+        start_date, end_date, period_name = self.extract_time_period(query_lower)
+        
+        # Filter expenses by date if time period detected
+        if start_date and expenses_data:
+            filtered_expenses = self.filter_by_date_range(expenses_data, start_date, end_date)
+            
+            if not filtered_expenses:
+                return f"You haven't spent anything in {period_name}."
+            
+            # Re-analyze with filtered data
+            analysis = self.analyze_expenses(filtered_expenses)
+            expenses_data = filtered_expenses
+            
+            # Update context to include period
+            time_context = f" in {period_name}"
+        else:
+            time_context = ""
+        
+        # Total/Summary queries - check FIRST before specific items
+        if any(word in query_lower for word in ['total', 'all', 'overall', 'everything', 'entire', 'whole']):
+            if period_name:
+                return f"You spent Rs.{analysis['total']} in {period_name} across {analysis['count']} transactions."
+            elif any(word in query_lower for word in ['till now', 'so far', 'upto now', 'up to now']):
+                return f"You spent Rs.{analysis['total']} across {analysis['count']} transactions."
+            else:
+                return f"You spent Rs.{analysis['total']} across {analysis['count']} transactions{time_context}."
+        
+        # Specific item queries - check AFTER total queries
         if expenses_data and any(word in query_lower for word in ['spend', 'spent', 'much', 'cost', 'price']):
             item_result = self.find_specific_item(query_lower, expenses_data)
             if item_result:
@@ -132,22 +281,25 @@ class ExpenseAnalyzer:
                     expense = item_result['expenses'][0]
                     date_info = f" on {expense.get('date', 'unknown date')}" if expense.get('date') else ""
                     paid_by = f" (paid by {expense.get('paid_by')})" if expense.get('paid_by') else ""
-                    return f"You spent Rs.{total} on {item_name}{date_info}{paid_by}."
+                    return f"You spent Rs.{total} on {item_name}{date_info}{paid_by}{time_context}."
                 else:
-                    return f"You spent Rs.{total} on {item_name} across {count} transactions."
-
-        # Total/Summary queries
-        if any(word in query_lower for word in ['total', 'spent', 'expense']) and any(word in query_lower for word in ['till now', 'so far', 'overall', 'all']):
-            return f"Your {context} total expenses are Rs.{analysis['total']} across {analysis['count']} transactions over {analysis['days_tracked']} days."
+                    return f"You spent Rs.{total} on {item_name} across {count} transactions{time_context}."
+        
+        # General spending queries (fallback for "spent", "expense", "much" without total keywords)
+        if any(word in query_lower for word in ['spent', 'expense', 'much']):
+            if period_name:
+                return f"You spent Rs.{analysis['total']} in {period_name} across {analysis['count']} transactions."
+            else:
+                return f"You spent Rs.{analysis['total']} across {analysis['count']} transactions{time_context}."
 
         # Specific category queries
         for category in self.categories.keys():
             if category in query_lower:
                 amount = analysis['categories'].get(category, 0)
                 if amount > 0:
-                    return f"You've spent Rs.{amount} on {category} in your {context} expenses."
+                    return f"You've spent Rs.{amount} on {category}{time_context}."
                 else:
-                    return f"You haven't spent anything on {category} in your {context} expenses yet."
+                    return f"You haven't spent anything on {category}{time_context}."
 
         # Breakdown/Category analysis
         if any(word in query_lower for word in ['category', 'breakdown', 'categories', 'where', 'what']):
@@ -217,6 +369,6 @@ class ExpenseAnalyzer:
         if analysis['top_categories']:
             top_category, top_amount = analysis['top_categories'][0]
             percentage = (top_amount / analysis['total'] * 100) if analysis['total'] > 0 else 0
-            return f"Your {context} expenses: Rs.{analysis['total']} total across {analysis['count']} transactions. Top spending: {top_category.title()} (Rs.{top_amount}, {percentage:.1f}%). Daily average: Rs.{analysis['average_per_day']}."
+            return f"You spent Rs.{analysis['total']}{time_context} across {analysis['count']} transactions. Top spending: {top_category.title()} (Rs.{top_amount}, {percentage:.1f}%)."
         else:
-            return f"Your {context} expenses: Rs.{analysis['total']} total across {analysis['count']} transactions. Daily average: Rs.{analysis['average_per_day']}."
+            return f"You spent Rs.{analysis['total']}{time_context} across {analysis['count']} transactions."

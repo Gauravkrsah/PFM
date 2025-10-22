@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../supabase'
 import { useToast } from './Toast'
 
@@ -14,20 +14,7 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
   const [showMembers, setShowMembers] = useState(false)
   const toast = useToast()
 
-  useEffect(() => {
-    if (user) {
-      fetchGroups()
-      fetchInvitations()
-    }
-  }, [user])
-
-  useEffect(() => {
-    if (currentGroup) {
-      fetchGroupMembers()
-    }
-  }, [currentGroup])
-
-  const fetchGroups = async () => {
+  const fetchGroups = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('group_members')
@@ -35,35 +22,94 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
         .eq('user_id', user.id)
       
       if (error) {
-        console.error('Error fetching groups:', error)
+        // Error handled silently
       } else {
-        console.log('Fetched groups:', data)
         const fetchedGroups = data?.map(item => item.groups) || []
         setGroups(fetchedGroups)
         
         // Validate current group still exists
         if (currentGroup && !fetchedGroups.find(g => g.id === currentGroup.id)) {
-          console.log('Current group no longer exists, switching to personal')
           onGroupChange(null)
         }
       }
     } catch (err) {
-      console.error('Unexpected error fetching groups:', err)
+      // Error handled silently
     }
-  }
+  }, [user, currentGroup, onGroupChange])
 
-  const fetchInvitations = async () => {
-    console.log('Fetching invitations for:', user.email)
-    const { data, error } = await supabase
+  const fetchInvitations = useCallback(async () => {
+    const { data } = await supabase
       .from('group_invitations')
       .select('*, groups(name)')
       .eq('invited_email', user.email)
       .eq('status', 'pending')
     
-    console.log('Invitations data:', data)
-    console.log('Invitations error:', error)
     setInvitations(data || [])
-  }
+  }, [user])
+
+  const fetchGroupMembers = useCallback(async () => {
+    if (!currentGroup) {
+      setGroupMembers([])
+      return
+    }
+
+    setLoadingMembers(true)
+    try {
+      const { data: membersData, error: membersError } = await supabase
+        .from('group_members')
+        .select('user_id')
+        .eq('group_id', parseInt(currentGroup.id))
+
+      if (membersError) {
+        setGroupMembers([])
+        return
+      }
+
+      if (!membersData || membersData.length === 0) {
+        setGroupMembers([])
+        return
+      }
+
+      const userIds = membersData.map(m => m.user_id)
+
+      const { data: usersData, error: usersError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', userIds)
+
+      if (usersError) {
+        setGroupMembers([])
+        return
+      }
+
+      const combined = membersData.map(member => {
+        const userInfo = usersData.find(u => u.id === member.user_id)
+        return {
+          user_id: member.user_id,
+          users: userInfo || null
+        }
+      })
+
+      setGroupMembers(combined)
+    } catch (err) {
+      setGroupMembers([])
+    } finally {
+      setLoadingMembers(false)
+    }
+  }, [currentGroup])
+
+  useEffect(() => {
+    if (user) {
+      fetchGroups()
+      fetchInvitations()
+    }
+  }, [user, fetchGroups, fetchInvitations])
+
+  useEffect(() => {
+    if (currentGroup) {
+      fetchGroupMembers()
+    }
+  }, [currentGroup, fetchGroupMembers])
 
   const acceptInvitation = async (invitationId, groupId) => {
     await supabase
@@ -85,103 +131,35 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
     setIsProcessing(true)
     
     try {
-      console.log('Creating group:', groupName, 'for user:', user.id)
       const { data, error } = await supabase
         .from('groups')
         .insert({ name: groupName, created_by: user.id })
         .select()
       
       if (error) {
-        console.error('Error creating group:', error)
         toast.error('Error creating group: ' + error.message)
         return
       }
       
       if (data?.[0]) {
-        console.log('Group created:', data[0])
         const { error: memberError } = await supabase
           .from('group_members')
           .insert({ group_id: data[0].id, user_id: user.id })
         
         if (memberError) {
-          console.error('Error adding member:', memberError)
           toast.error('Group created but error adding you as member: ' + memberError.message)
         } else {
-          console.log('Member added successfully')
           toast.success('Group created successfully!')
           setGroupName('')
           setShowCreate(false)
-          // Set the newly created group as current group
           onGroupChange(data[0])
           fetchGroups()
         }
       }
     } catch (err) {
-      console.error('Unexpected error:', err)
       toast.error('Unexpected error creating group: ' + err.message)
     } finally {
       setIsProcessing(false)
-    }
-  }
-
-  const fetchGroupMembers = async () => {
-    if (!currentGroup) {
-      setGroupMembers([])
-      return
-    }
-
-    setLoadingMembers(true)
-    try {
-      console.log('🔄 Fetching group members for group:', currentGroup.id)
-
-      // First fetch group members user_ids
-      const { data: membersData, error: membersError } = await supabase
-        .from('group_members')
-        .select('user_id')
-        .eq('group_id', parseInt(currentGroup.id))
-
-      if (membersError) {
-        console.error('❌ Error fetching group members:', membersError)
-        setGroupMembers([])
-        return
-      }
-
-      if (!membersData || membersData.length === 0) {
-        setGroupMembers([])
-        return
-      }
-
-      // Extract user_ids
-      const userIds = membersData.map(m => m.user_id)
-
-      // Fetch user details for these user_ids from profiles table
-      const { data: usersData, error: usersError } = await supabase
-        .from('profiles')
-        .select('id, full_name, email')
-        .in('id', userIds)
-
-      if (usersError) {
-        console.error('❌ Error fetching users:', usersError)
-        setGroupMembers([])
-        return
-      }
-
-      // Combine members with user info
-      const combined = membersData.map(member => {
-        const userInfo = usersData.find(u => u.id === member.user_id)
-        return {
-          user_id: member.user_id,
-          users: userInfo || null
-        }
-      })
-
-      console.log('✅ Fetched and combined group members:', combined)
-      setGroupMembers(combined)
-    } catch (err) {
-      console.error('❌ Unexpected error fetching group members:', err)
-      setGroupMembers([])
-    } finally {
-      setLoadingMembers(false)
     }
   }
 
@@ -192,7 +170,6 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
     toast.confirm(
       'Are you sure you want to leave this group?',
       async () => {
-    
         await supabase
           .from('group_members')
           .delete()
@@ -216,20 +193,13 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
       'Are you sure you want to delete this group? This cannot be undone.',
       async () => {
         try {
-          // Delete group members first
           await supabase.from('group_members').delete().eq('group_id', currentGroup.id)
-          
-          // Delete group invitations
           await supabase.from('group_invitations').delete().eq('group_id', currentGroup.id)
-          
-          // Delete expenses related to the group
           await supabase.from('expenses').delete().eq('group_id', currentGroup.id)
           
-          // Finally delete the group
           const { error } = await supabase.from('groups').delete().eq('id', currentGroup.id)
           
           if (error) {
-            console.error('Error deleting group:', error)
             toast.error('Error deleting group: ' + error.message)
           } else {
             onGroupChange(null)
@@ -237,7 +207,6 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
             toast.success('Group deleted successfully')
           }
         } catch (err) {
-          console.error('Unexpected error deleting group:', err)
           toast.error('Error deleting group: ' + err.message)
         } finally {
           setIsProcessing(false)
@@ -292,7 +261,6 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
         </div>
       )}
       
-      {/* Single row layout */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
         <select
           value={currentGroup?.id || 'personal'}
@@ -334,7 +302,6 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
               </button>
             </form>
             
-            {/* Group Action Buttons */}
             <div className="flex gap-2">
               <button
                 onClick={leaveGroup}
@@ -368,8 +335,6 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
         )}
       </div>
 
-
-      {/* New Group Modal */}
       {showCreate && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -496,7 +461,6 @@ export default function GroupManager({ user, currentGroup, onGroupChange }) {
             </div>
           )}
           
-          {/* Group Info */}
           <div className="mt-4 pt-3 border-t border-blue-200">
             <div className="flex flex-wrap gap-4 text-xs text-blue-600">
               <span>👑 Admin: {groupMembers.find(m => m.user_id === currentGroup.created_by)?.users?.full_name || groupMembers.find(m => m.user_id === currentGroup.created_by)?.users?.email?.split('@')[0] || 'Unknown'}</span>

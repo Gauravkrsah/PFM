@@ -129,19 +129,19 @@ const ToastItem = ({ toast, onRemove }) => {
   const getIconAndColor = () => {
     switch (toast.type) {
       case 'success':
-        return { icon: '✅', color: 'text-green-700', bg: 'bg-green-100', border: 'border-green-200' }
+        return { icon: '✅', bg: 'bg-green-100', border: 'border-green-200' }
       case 'error':
-        return { icon: '❌', color: 'text-red-700', bg: 'bg-red-100', border: 'border-red-200' }
+        return { icon: '❌', bg: 'bg-red-100', border: 'border-red-200' }
       case 'warning':
-        return { icon: '⚠️', color: 'text-yellow-700', bg: 'bg-yellow-100', border: 'border-yellow-200' }
+        return { icon: '⚠️', bg: 'bg-yellow-100', border: 'border-yellow-200' }
       case 'confirm':
-        return { icon: '❓', color: 'text-blue-700', bg: 'bg-blue-100', border: 'border-blue-200' }
+        return { icon: '❓', bg: 'bg-blue-100', border: 'border-blue-200' }
       default:
-        return { icon: 'ℹ️', color: 'text-blue-700', bg: 'bg-blue-100', border: 'border-blue-200' }
+        return { icon: 'ℹ️', bg: 'bg-blue-100', border: 'border-blue-200' }
     }
   }
 
-  const { icon, color, bg, border } = getIconAndColor()
+  const { icon, bg, border } = getIconAndColor()
 
   if (toast.type === 'confirm') {
     return (

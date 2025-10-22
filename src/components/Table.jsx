@@ -1,4 +1,4 @@
-import { useState, useEffect, useImperativeHandle, forwardRef } from 'react'
+import { useState, useEffect, useImperativeHandle, forwardRef, useCallback } from 'react'
 import { supabase } from '../supabase'
 
 const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref) => {
@@ -6,18 +6,15 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState({})
   const [loading, setLoading] = useState(false)
-  const [groupMembers, setGroupMembers] = useState([])
+
   const [userProfiles, setUserProfiles] = useState({})
 
   const fetchUserProfiles = async (expenses) => {
     try {
-      console.log('🔍 Fetching user profiles for expenses:', expenses.length)
       // Get unique user_ids from expenses
       const userIds = [...new Set(expenses.map(exp => exp.user_id).filter(Boolean))]
-      console.log('👥 User IDs found:', userIds)
       
       if (userIds.length === 0) {
-        console.log('⚠️ No user IDs found')
         return
       }
 
@@ -28,80 +25,24 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
         .in('id', userIds)
 
       if (error) {
-        console.error('❌ Error fetching user profiles:', error)
         return
       }
 
-      console.log('✅ Profiles fetched:', profiles)
       // Create profiles map
       const profilesMap = {}
       profiles?.forEach(profile => {
         profilesMap[profile.id] = profile
       })
       
-      console.log('📋 Profiles map:', profilesMap)
       setUserProfiles(profilesMap)
     } catch (error) {
-      console.error('💥 Error fetching user profiles:', error)
+      // Error handled silently
     }
   }
 
-  const fetchGroupMembers = async () => {
-    if (!currentGroup) {
-      setGroupMembers([])
-      return
-    }
 
-    try {
-      // First fetch group members user_ids
-      const { data: membersData, error: membersError } = await supabase
-        .from('group_members')
-        .select('user_id')
-        .eq('group_id', currentGroup.id)
 
-      if (membersError) {
-        console.error('Error fetching group members:', membersError)
-        setGroupMembers([])
-        return
-      }
-
-      if (!membersData || membersData.length === 0) {
-        setGroupMembers([])
-        return
-      }
-
-      // Extract user_ids
-      const userIds = membersData.map(m => m.user_id)
-
-      // Fetch user details for these user_ids from profiles table
-      const { data: usersData, error: usersError } = await supabase
-        .from('profiles')
-        .select('id, full_name, email')
-        .in('id', userIds)
-
-      if (usersError) {
-        console.error('Error fetching users:', usersError)
-        setGroupMembers([])
-        return
-      }
-
-      // Combine members with user info
-      const combined = membersData.map(member => {
-        const userInfo = usersData.find(u => u.id === member.user_id)
-        return {
-          user_id: member.user_id,
-          users: userInfo || null
-        }
-      })
-
-      setGroupMembers(combined)
-    } catch (error) {
-      console.error('Error fetching group members:', error)
-      setGroupMembers([])
-    }
-  }
-
-  const fetchExpenses = async () => {
+  const fetchExpenses = useCallback(async () => {
     setLoading(true)
     try {
       let query = supabase.from('expenses').select('*')
@@ -115,18 +56,16 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
       const { data, error } = await query.order('date', { ascending: false })
       
       if (error) {
-        console.error('Error fetching expenses:', error)
         setData([])
       } else {
         setData(data || [])
         await fetchUserProfiles(data || [])
       }
     } catch (error) {
-      console.error('Error fetching expenses:', error)
       setData([])
     }
     setLoading(false)
-  }
+  }, [currentGroup, user])
 
   useImperativeHandle(ref, () => ({
     refresh: fetchExpenses
@@ -134,8 +73,7 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
 
   useEffect(() => {
     fetchExpenses()
-    fetchGroupMembers()
-  }, [currentGroup, user])
+  }, [currentGroup, user, fetchExpenses])
 
   const handleEdit = (expense) => {
     setEditingId(expense.id)
@@ -149,7 +87,7 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
       setEditingId(null)
       fetchExpenses()
     } catch (error) {
-      console.error('Error updating expense:', error)
+      // Error handled silently
     }
   }
 
@@ -159,7 +97,7 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
       if (error) throw error
       fetchExpenses()
     } catch (error) {
-      console.error('Error deleting expense:', error)
+      // Error handled silently
     }
   }
 
@@ -269,16 +207,11 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
                     <td className="p-2">
                       {(() => {
                         const userId = expense.user_id
-                        console.log(`🔍 Expense ${expense.id}: userId=${userId}, userProfiles:`, userProfiles)
                         if (userId && userProfiles[userId]) {
                           const profile = userProfiles[userId]
-                          const name = profile.full_name || profile.email?.split('@')[0] || 'Unknown User'
-                          console.log(`✅ Found profile for ${userId}:`, name)
-                          return name
+                          return profile.full_name || profile.email?.split('@')[0] || 'Unknown User'
                         }
-                        const fallback = expense.added_by || expense.user_name || 'Unknown User'
-                        console.log(`⚠️ No profile for ${userId}, using fallback:`, fallback)
-                        return fallback
+                        return expense.added_by || expense.user_name || 'Unknown User'
                       })()}
                     </td>
                     <td className="p-2">
@@ -290,6 +223,13 @@ const Table = forwardRef(({ expenses, onExpenseUpdate, currentGroup, user }, ref
               </tr>
             ))}
           </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-gray-300 font-semibold">
+              <td className="p-2" colSpan="3"></td>
+              <td className="p-2 text-blue-600">Rs.{data.reduce((sum, exp) => sum + (exp.amount || 0), 0)}</td>
+              <td className="p-2" colSpan="3"></td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     </div>

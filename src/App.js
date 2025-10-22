@@ -6,15 +6,14 @@ import Header from './components/Header'
 import GroupManager from './components/GroupManager'
 import Chat from './components/Chat'
 import Table from './components/Table'
-import Analytics from './components/Analytics'
 import EnhancedAnalytics from './components/EnhancedAnalytics'
 import { ToastProvider } from './components/Toast'
 import { supabase } from './supabase'
-import { initializeMobile, getMobileStyles, isMobile } from './mobile'
+import { initializeMobile, getMobileStyles } from './mobile'
 
 function App() {
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem('pfm_active_tab') || 'chat')
-  const [expenses, setExpenses] = useState([])
+  const [expenses] = useState([])
   const [user, setUser] = useState(null)
   const [currentGroup, setCurrentGroup] = useState(() => {
     try {
@@ -23,7 +22,7 @@ function App() {
     } catch { return null }
   })
   const tableRef = useRef()
-  const [toast, setToast] = useState(null)
+
   const mobileStyles = getMobileStyles()
   
   // Initialize mobile app
@@ -82,7 +81,6 @@ function App() {
         const { error } = await supabase.from('expenses').insert(expenseData)
         
         if (error) {
-          console.error('Database error:', error)
           throw error
         }
       }
@@ -92,7 +90,6 @@ function App() {
         tableRef.current.refresh()
       }
     } catch (error) {
-      console.error('Error adding expenses:', error)
       throw error
     }
   }

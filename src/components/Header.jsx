@@ -30,10 +30,8 @@ export default function Header({ user, onLogout, onProfileUpdate }) {
     setLoading(true)
     
     try {
-      console.log('Updating profile with data:', profile)
-      
       // Update user metadata
-      const { data: userData, error: metadataError } = await supabase.auth.updateUser({
+      const { error: metadataError } = await supabase.auth.updateUser({
         data: {
           name: profile.name,
           phone: profile.phone,
@@ -41,11 +39,9 @@ export default function Header({ user, onLogout, onProfileUpdate }) {
         }
       })
       
-      console.log('Profile update result:', { userData, metadataError })
-      
       // Also update display name if name is provided
       if (profile.name && !metadataError) {
-        const { error: displayNameError } = await supabase.auth.updateUser({
+        await supabase.auth.updateUser({
           data: {
             display_name: profile.name,
             full_name: profile.name,
@@ -54,10 +50,6 @@ export default function Header({ user, onLogout, onProfileUpdate }) {
             bio: profile.bio
           }
         })
-        
-        if (displayNameError) {
-          console.warn('Display name update warning:', displayNameError)
-        }
       }
       
       if (!metadataError) {
