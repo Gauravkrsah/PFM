@@ -1,0 +1,5 @@
+<IfModule mod_headers.c>
+  # Allow our site to connect to Vercel backend and Supabase APIs
+  # Adjust/add domains as needed for your deployment
+  Header always set Content-Security-Policy "default-src 'self'; connect-src 'self' https://pfm-xi.vercel.app https://qbcczhvrmlmorzszdkmm.supabase.co https://*.supabase.co https://*.vercel.app wss://*.supabase.co; img-src 'self' data: https://*.supabase.co; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-ancestors 'self'; base-uri 'self';"
+</IfModule>

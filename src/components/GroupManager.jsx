@@ -271,7 +271,7 @@ export default function GroupManager({ user, currentGroup, onGroupChange, onClea
               onGroupChange(group)
               setShowMembers(false)
             }}
-            className="flex-1 lg:w-64 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent bg-white hover:border-gray-400 transition-colors"
+            className="w-40 sm:w-56 lg:w-64 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent bg-white hover:border-gray-400 transition-colors"
           >
             <option value="personal">👤 Personal</option>
             {groups.map(group => (
@@ -284,6 +284,14 @@ export default function GroupManager({ user, currentGroup, onGroupChange, onClea
             className="px-3 py-2 text-xs bg-black text-white rounded-lg hover:bg-gray-800 transition-colors font-medium whitespace-nowrap"
           >
             + New
+          </button>
+
+          {/* Mobile: Clear Chat inline with top row */}
+          <button
+            onClick={onClearChat}
+            className="lg:hidden px-3 py-2 text-xs bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium ml-2 whitespace-nowrap"
+          >
+            Clear Chat
           </button>
 
           {currentGroup && (
@@ -364,12 +372,7 @@ export default function GroupManager({ user, currentGroup, onGroupChange, onClea
               Delete
             </button>
           )}
-          <button
-            onClick={onClearChat}
-            className="px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600 whitespace-nowrap"
-          >
-            Clear Chat
-          </button>
+          {/* Clear Chat moved to the top row for mobile */}
         </div>
       )}
 

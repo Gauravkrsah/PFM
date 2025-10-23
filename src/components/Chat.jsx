@@ -14,7 +14,7 @@ const getApiBaseUrl = () => {
   }
   
   if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-    return 'https://pfm-production.up.railway.app'
+    return 'https://pfm-xi.vercel.app'
   }
   
   return ''

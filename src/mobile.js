@@ -9,14 +9,14 @@ export const isMobile = () => {
 export const getMobileConfig = () => {
   if (isMobile()) {
     return {
-      apiUrl: process.env.REACT_APP_API_URL || 'https://pfm-backend-production.up.railway.app',
+  apiUrl: process.env.REACT_APP_API_URL || 'https://pfm-xi.vercel.app',
       platform: Capacitor.getPlatform()
     };
   }
-  return {
-    apiUrl: process.env.REACT_APP_API_URL || 'http://localhost:8000',
-    platform: 'web'
-  };
+    return {
+      apiUrl: process.env.REACT_APP_API_URL || 'http://localhost:8000',
+      platform: 'web'
+    };
 };
 
 export const initializeMobile = async () => {
